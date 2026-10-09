@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Champi Vendée</title>
+  <meta name="description" content="Carte des coins à champignons comestibles en Vendée, avec probabilité de pousse calculée selon la météo.">
+  <meta name="theme-color" content="#3d2b1f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Champi Vendée">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="28" height="28">
+      <div>
+        <h1>Champi Vendée</h1>
+        <p id="subtitle">Chargement de la météo…</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-list" class="icon-btn" title="Meilleurs coins" aria-label="Meilleurs coins">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </button>
+      <button id="btn-locate" class="icon-btn" title="Ma position" aria-label="Ma position">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button id="btn-info" class="icon-btn" title="Infos et sécurité" aria-label="Infos et sécurité">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav id="days" class="days" aria-label="Jour"></nav>
+
+  <main id="map" aria-label="Carte de la Vendée"></main>
+
+  <div id="legend" class="legend" aria-label="Espèces"></div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+  <section id="sheet" class="sheet" aria-modal="true" role="dialog" hidden>
+    <div class="sheet-handle"></div>
+    <button id="sheet-close" class="sheet-close" aria-label="Fermer">×</button>
+    <div id="sheet-content" class="sheet-content"></div>
+  </section>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/vendee.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/algo.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
