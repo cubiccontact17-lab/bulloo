@@ -373,3 +373,107 @@ button { font: inherit; color: inherit; }
   font-size: 13px;
   cursor: pointer;
 }
+
+/* --- En-tête : 5 boutons sur petits écrans --- */
+.actions { gap: 2px; }
+.icon-btn { width: 38px; height: 38px; position: relative; }
+@media (max-width: 380px) { .brand img { display: none; } .icon-btn { width: 34px; } }
+.icon-btn.has-alerts::after {
+  content: "";
+  position: absolute; top: 6px; right: 6px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #ff6b3d;
+  border: 2px solid var(--brand);
+}
+
+/* --- Mes coins sur la carte --- */
+.coin-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex; align-items: center; gap: 3px;
+  padding: 3px 7px 3px 5px;
+  border-radius: 12px 12px 12px 2px;
+  background: var(--c);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+  border: 2px solid #fff;
+}
+.coin-pin span { font-size: 14px; line-height: 1; }
+
+/* --- Boutons, formulaires --- */
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn-row .btn { margin-top: 14px; }
+button.btn { cursor: pointer; font: inherit; font-weight: 600; }
+.btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--line); }
+.btn.danger { background: transparent; color: #c62828; border: 1px solid currentColor; }
+@media (prefers-color-scheme: dark) { .btn.danger { color: #ef9a9a; } }
+label.btn { cursor: pointer; }
+
+.form { display: flex; flex-direction: column; gap: 6px; }
+.form label { font-weight: 600; font-size: 14px; margin-top: 10px; }
+.form label.check { font-weight: 400; margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+.form input[type="text"], .form textarea, .form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.form input:focus, .form textarea:focus, .form select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.form-error { color: #c62828; font-size: 13px; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .form-error { color: #ef9a9a; } }
+.pick-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick-grid .chip[aria-pressed="false"] { opacity: .55; }
+.pick-grid .chip[aria-pressed="true"] { border-color: var(--text); font-weight: 600; }
+
+.seg {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 13px;
+  cursor: pointer;
+}
+.seg[aria-pressed="true"] { background: var(--brand); color: var(--brand-text); border-color: var(--brand); }
+.answer .seg[data-v="1"][aria-pressed="true"] { background: var(--lvl-5); border-color: var(--lvl-5); }
+.answer .seg[data-v="0"][aria-pressed="true"] { background: #8d6e63; border-color: #8d6e63; }
+.answer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.answer .swatch { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(0, 0, 0, .35); flex-shrink: 0; }
+.answer .name { flex: 1; min-width: 0; font-size: 14px; }
+
+.empty {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.empty b { color: var(--text); }
+.adjust { font-size: 12px; color: var(--accent); margin: 4px 0 0; }
+.mini { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .3); margin-right: 1px; }
+.rank li.hist { cursor: default; font-size: 13px; justify-content: space-between; }
+.rank li.hist span:first-child { flex: 1; }
+.ok { color: var(--lvl-5); }
+.ko { color: var(--muted); }
+.notes {
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  border-radius: 0 8px 8px 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+.coin-ico { color: var(--accent); font-size: 18px; width: 14px; text-align: center; }
+.sp-head { display: flex; align-items: center; gap: 10px; }
+.sp-head .name em { display: block; font-size: 11px; color: var(--muted); }

@@ -1,12 +1,13 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v2";
+const VERSION = "champi-v3";
 const SHELL = [
   "./",
   "index.html",
   "css/style.css",
   "js/app.js",
   "js/algo.js",
+  "js/user.js",
   "js/data.js",
   "js/vendee.js",
   "manifest.webmanifest",
@@ -22,6 +23,40 @@ const TILE_CACHE = "champi-tiles";
 const PHOTO_CACHE = "champi-photos";
 const MAX_TILES = 800;
 
+// Données et algorithme partagés avec l'application (définit DATA_CACHE, computeAlerts…)
+importScripts("js/data.js", "js/algo.js", "js/user.js");
+
+// Vérification des alertes en arrière-plan (Android, appli installée)
+async function backgroundCheck() {
+  const data = await readShared("user-data.json");
+  if (!data || !data.alertSettings || !data.alertSettings.enabled) return;
+  const res = await fetch(weatherUrl());
+  if (!res.ok) return;
+  const weather = parseWeather(await res.json());
+  if (weather.length !== ZONES.length) return;
+  const alerts = computeAlerts({
+    weather,
+    coins: data.coins || [],
+    calib: fitCalibration(data.observations || []),
+    settings: data.alertSettings
+  });
+  await notifyNew(self.registration, alerts);
+}
+
+self.addEventListener("periodicsync", e => {
+  if (e.tag === "champi-alertes") e.waitUntil(backgroundCheck().catch(() => {}));
+});
+
+// Toucher la notification ouvre l'appli sur la liste des alertes
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const target = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    for (const c of list) if ("focus" in c) { c.navigate(target).catch(() => {}); return c.focus(); }
+    return self.clients.openWindow(target);
+  }));
+});
+
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
@@ -29,7 +64,7 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== TILE_CACHE && k !== PHOTO_CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== TILE_CACHE && k !== PHOTO_CACHE && k !== DATA_CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

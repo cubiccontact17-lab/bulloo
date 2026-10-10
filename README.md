@@ -28,6 +28,14 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 - Classement des meilleurs coins, géolocalisation et distances.
 - Fonctionne hors connexion avec la dernière météo connue.
 
+## Mes coins, sorties, alertes (`js/user.js`)
+
+- **Mes coins** : appui long sur la carte (ou bouton ★) pour enregistrer un coin avec les champignons qu'on y trouve. Le coin utilise la météo du secteur le plus proche et affiche ses chances de pousse chaque jour.
+- **Noter une sortie** (📝) : pour chaque champignon cherché, « Trouvé » ou « Rien ». L'appli compare avec ce qu'elle avait prévu ce jour-là.
+- **Apprentissage** : petite régression logistique, avec un biais par espèce (partout) et un biais par espèce dans chaque lieu. Les biais décalent la probabilité en échelle logit. Une pénalité les garde modestes tant qu'il y a peu de sorties.
+- **Alertes** (🔔) : seuil Bon (60 %) ou Excellent (80 %), sur mes coins et/ou tous les secteurs, espèces au choix, pour aujourd'hui et les 3 jours suivants. Sur Android, avec l'appli installée, le service worker vérifie en arrière-plan (Periodic Background Sync, environ toutes les 6 h). Ailleurs, la vérification a lieu à chaque ouverture. Une même alerte n'est notifiée qu'une fois.
+- **Sauvegarde** : export / import JSON. Les données restent sur le téléphone (localStorage, avec une copie dans le Cache API pour le service worker).
+
 ## L'algorithme (`js/algo.js`)
 
 Pour chaque secteur, la météo journalière vient d'[Open-Meteo](https://open-meteo.com) (gratuit, sans clé) : 21 jours passés + 7 jours de prévision.
