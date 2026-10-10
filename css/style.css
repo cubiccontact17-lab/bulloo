@@ -215,10 +215,12 @@ button { font: inherit; color: inherit; }
   position: absolute; right: 8px; top: 6px;
   width: 36px; height: 36px;
   border: 0; border-radius: 50%;
-  background: transparent;
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
   font-size: 26px; line-height: 1;
   cursor: pointer;
   color: var(--muted);
+  z-index: 2;
 }
 .sheet-content {
   overflow-y: auto;
@@ -304,3 +306,70 @@ button { font: inherit; color: inherit; }
 @media (prefers-color-scheme: dark) { .alert { background: #3b1d1d; color: #f5c2c2; } }
 .sheet ul.plain { padding-left: 18px; font-size: 14px; }
 .sheet ul.plain li { margin: 4px 0; }
+
+/* --- Fiche espèce --- */
+.photo {
+  position: relative;
+  margin: 8px -16px 0;
+  aspect-ratio: 4 / 3;
+  max-height: 40dvh;
+  width: calc(100% + 32px);
+  max-width: none;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--sp) 25%, var(--bg));
+  display: grid;
+  place-items: center;
+}
+.photo img { width: 100%; height: 100%; object-fit: cover; max-width: none; }
+.photo-ph { color: var(--muted); font-size: 13px; }
+.photo figcaption {
+  position: absolute; right: 0; bottom: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  border-top-left-radius: 8px;
+}
+.photo figcaption a { color: #fff; }
+.sheet h2 .swatch.big {
+  display: inline-block;
+  width: 16px; height: 16px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, .35);
+  vertical-align: -1px;
+}
+.sheet p { margin: 0 0 6px; }
+.toggle {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.toggle[aria-pressed="true"] { background: var(--lvl-5); border-color: var(--lvl-5); color: #fff; }
+.months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin-bottom: 6px; }
+.months .m {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; color: var(--muted);
+}
+.months .m i {
+  display: block; width: 100%; height: 22px;
+  border-radius: 4px;
+  outline: 1px solid var(--line);
+}
+.months .m.now { color: var(--text); font-weight: 700; }
+.months .m.now i { outline: 2px solid var(--text); }
+.link-btn {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}

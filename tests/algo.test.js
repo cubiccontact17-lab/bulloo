@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 const fs = require("node:fs");
 const path = require("node:path");
-const { SPECIES, ZONES } = require("../js/data.js");
+const { SPECIES, ZONES, FICHES } = require("../js/data.js");
 const { scoreSpecies, weatherSummary, levelFor } = require("../js/algo.js");
 
 const outline = new Function(fs.readFileSync(path.join(__dirname, "../js/vendee.js"), "utf8") + "; return VENDEE_OUTLINE;")();
@@ -79,4 +79,12 @@ test("trop chaud → score réduit", () => {
   const w = makeWeather(30, { t: 28 });
   const r = scoreSpecies(cepe, mervent, weatherSummary(w, 21), 9);
   assert.ok(r.score < 40, `score ${r.score}`);
+});
+
+test("chaque espèce a une fiche complète", () => {
+  for (const s of SPECIES) {
+    const f = FICHES[s.id];
+    assert.ok(f, `fiche manquante : ${s.name}`);
+    for (const k of ["wiki", "size", "ident", "milieu", "cuisine"]) assert.ok(f[k], `${s.name} : ${k}`);
+  }
 });

@@ -160,6 +160,7 @@
     renderSubtitle();
     if (openSheet.kind === "zone") showZone(openSheet.id);
     if (openSheet.kind === "list") showList();
+    if (openSheet.kind === "fiche") showFiche(openSheet.id);
   }
 
   // ---------- Rendu ----------
@@ -243,15 +244,19 @@
       b.className = "chip";
       b.setAttribute("aria-pressed", String(state.enabled.has(sp.id)));
       b.innerHTML = `<span class="swatch" style="background:${sp.color}"></span>${sp.name}`;
-      b.addEventListener("click", () => {
-        if (state.enabled.has(sp.id)) state.enabled.delete(sp.id); else state.enabled.add(sp.id);
-        savePrefs(); renderLegend(); refresh();
-      });
+      b.title = "Voir la fiche";
+      b.addEventListener("click", () => showFiche(sp.id));
       el.appendChild(b);
     });
   }
 
+  function toggleSpecies(id) {
+    if (state.enabled.has(id)) state.enabled.delete(id); else state.enabled.add(id);
+    savePrefs(); renderLegend(); refresh();
+  }
+
   function refresh() {
+    if (openSheet.kind === "fiche") showFiche(openSheet.id);
     if (!state.results.length) return;
     renderMap();
     renderSubtitle();
@@ -278,6 +283,16 @@
     $("#sheet-backdrop").hidden = true;
   }
   $("#sheet-close").addEventListener("click", closeSheet);
+  $("#sheet-content").addEventListener("click", e => {
+    const fiche = e.target.closest("[data-fiche]");
+    if (fiche) { e.preventDefault(); showFiche(fiche.dataset.fiche); return; }
+    const li = e.target.closest("li[data-zone]");
+    if (li && openSheet.kind === "fiche") {
+      const z = ZONES.find(x => x.id === li.dataset.zone);
+      map.flyTo([z.lat, z.lon], 12, { duration: 0.8 });
+      showZone(z.id);
+    }
+  });
   $("#sheet-backdrop").addEventListener("click", closeSheet);
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
 
@@ -313,6 +328,7 @@
           <div class="factors">${factors}</div>
           <p>${sp.tips}</p>
           <p class="warn">⚠ Confusions : ${sp.lookalikes}</p>
+          <button class="link-btn" data-fiche="${sp.id}">Voir la fiche complète →</button>
         </details>`;
       }).join("");
 
@@ -332,6 +348,125 @@
       ${rows || '<p class="muted">Aucune espèce sélectionnée ne correspond à ce milieu.</p>'}
       <a class="btn" href="${nav}" target="_blank" rel="noopener">🧭 Itinéraire</a>
     `, "zone", id);
+  }
+
+  // ---------- Fiches espèces ----------
+  const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+  const MONTH_NAMES = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const PHOTO_KEY = "champi-photos-v1";
+  const photoCache = storeGet(PHOTO_KEY) || {};
+
+  // Photo libre de droits depuis Wikipédia (français, puis anglais)
+  async function wikiPhoto(title) {
+    if (photoCache[title]) return photoCache[title];
+    for (const lang of ["fr", "en"]) {
+      try {
+        const res = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`);
+        if (!res.ok) continue;
+        const j = await res.json();
+        if (!j.thumbnail) continue;
+        let src = j.thumbnail.source;
+        if (j.originalimage && j.originalimage.width >= 640) src = src.replace(/\/\d+px-/, "/640px-");
+        const photo = { src, page: (j.content_urls && j.content_urls.mobile.page) || "", title: j.title };
+        photoCache[title] = photo;
+        storeSet(PHOTO_KEY, photoCache);
+        return photo;
+      } catch (e) { /* hors ligne : on essaie la langue suivante */ }
+    }
+    return null;
+  }
+
+  function seasonText(sp) {
+    const months = Object.keys(sp.season).map(Number).filter(m => sp.season[m] >= 0.7).sort((a, b) => a - b);
+    if (!months.length) return "";
+    // gère les saisons à cheval sur l'année (octobre → janvier)
+    let start = 0;
+    for (let i = 1; i < months.length; i++) if (months[i] !== months[i - 1] + 1) start = i;
+    const ordered = months.slice(start).concat(months.slice(0, start));
+    return `Pleine saison : ${MONTH_NAMES[ordered[0] - 1]} à ${MONTH_NAMES[ordered[ordered.length - 1] - 1]}`;
+  }
+
+  function showFiche(id) {
+    const sp = speciesById[id], f = FICHES[id];
+    if (!sp || !f) return;
+    const month = targetDate().getMonth() + 1;
+    const on = state.enabled.has(id);
+
+    const strip = MONTHS.map((m, i) => {
+      const w = sp.season[i + 1] || 0;
+      return `<span class="m${i + 1 === month ? " now" : ""}" title="${MONTH_NAMES[i]}">
+        <i style="background:${sp.color};opacity:${w ? 0.25 + 0.75 * w : 0}"></i>${m}</span>`;
+    }).join("");
+
+    let where = "";
+    if (state.results.length) {
+      const spots = state.results
+        .map(r => ({ zone: r.zone, s: r.scores.find(x => x.species.id === id) }))
+        .filter(x => x.s.factors.habitat)
+        .sort((a, b) => b.s.score - a.s.score)
+        .slice(0, 5);
+      const day = state.day === 0 ? "aujourd'hui" : targetDate().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" });
+      where = `<h3>Où le chercher ${day}</h3>` + (spots.length
+        ? `<ul class="rank">${spots.map(x => `<li data-zone="${x.zone.id}">
+            <span class="swatch" style="background:${sp.color}"></span>
+            <span class="txt"><b>${x.zone.name}</b><span>${x.zone.note}</span></span>
+            ${levelBadge(x.s.score)}<span class="score">${x.s.score} %</span></li>`).join("")}</ul>`
+        : '<p class="muted">Aucun secteur adapté.</p>');
+    }
+
+    showSheet(`
+      <figure class="photo" style="--sp:${sp.color}">
+        <img id="fiche-img" alt="Photo : ${sp.name}" hidden>
+        <figcaption id="fiche-credit" hidden></figcaption>
+        <span class="photo-ph">Chargement de la photo…</span>
+      </figure>
+      <h2><span class="swatch big" style="background:${sp.color}"></span>${sp.name}</h2>
+      <p class="muted"><em>${sp.latin}</em> · ${f.size}</p>
+      <button class="toggle" id="fiche-toggle" aria-pressed="${on}">
+        ${on ? "✓ Affiché sur la carte" : "Masqué sur la carte : afficher"}
+      </button>
+
+      <h3>Comment le reconnaître</h3>
+      <p>${f.ident}</p>
+      <div class="alert">⚠ <b>Confusions possibles :</b> ${sp.lookalikes}</div>
+
+      <h3>Milieu</h3>
+      <p>${f.milieu}</p>
+      <div class="tags">${sp.habitats.map(h => `<span class="tag">${HABITAT_LABELS[h] || h}</span>`).join("")}</div>
+      <p class="muted" style="margin-top:8px">${sp.tips}</p>
+
+      <h3>Saison</h3>
+      <div class="months">${strip}</div>
+      <p class="muted">${seasonText(sp)}</p>
+
+      <h3>Météo favorable</h3>
+      <div class="wx">
+        <div><b>${sp.temp[1]}–${sp.temp[2]}°</b><span>température idéale</span></div>
+        <div><b>${sp.rainMin} mm</b><span>pluie sur 2 semaines</span></div>
+        <div><b>&gt; 85 %</b><span>humidité de l'air</span></div>
+        <div><b>${sp.temp[0] <= 2 ? "Oui" : "Non"}</b><span>supporte le froid</span></div>
+      </div>
+
+      ${where}
+
+      <h3>En cuisine</h3>
+      <p>${f.cuisine}</p>
+    `, "fiche", id);
+
+    $("#fiche-toggle").addEventListener("click", () => toggleSpecies(id));
+
+    wikiPhoto(f.wiki).then(photo => {
+      if (openSheet.kind !== "fiche" || openSheet.id !== id) return;
+      const img = $("#fiche-img"), ph = document.querySelector(".photo-ph");
+      if (!img) return;
+      if (!photo) { ph.textContent = "Photo indisponible hors connexion"; return; }
+      img.onload = () => { img.hidden = false; ph.hidden = true; };
+      img.onerror = () => { ph.textContent = "Photo indisponible hors connexion"; };
+      img.src = photo.src;
+      const cr = $("#fiche-credit");
+      cr.innerHTML = `Photo : <a href="${photo.page}" target="_blank" rel="noopener">Wikipédia – ${photo.title}</a>`;
+      cr.hidden = false;
+    });
   }
 
   function showList() {
@@ -380,7 +515,7 @@
       <p>Le score combine ces facteurs : un seul facteur très défavorable (pas de pluie, trop froid) suffit à faire chuter la note. Les jours suivants utilisent les <b>prévisions</b> météo.</p>
       <h3>Légende</h3>
       <p><span class="lvl lvl-5">Excellent</span> ≥ 80 % · <span class="lvl lvl-4">Bon</span> ≥ 60 % · <span class="lvl lvl-3">Moyen</span> ≥ 35 % · <span class="lvl lvl-2">Faible</span> ≥ 15 %</p>
-      <p>Sur la carte, chaque secteur affiche une pastille par espèce probable (plus elle est grosse, plus la probabilité est forte). Touchez un secteur pour le détail. Les boutons du bas filtrent les espèces.</p>
+      <p>Sur la carte, chaque secteur affiche une pastille par espèce probable (plus elle est grosse, plus la probabilité est forte). Touchez un secteur pour le détail. Touchez un champignon en bas de l'écran pour ouvrir sa fiche (photo, milieu, saison) et choisir de l'afficher ou non sur la carte.</p>
       <h3>Bonnes pratiques</h3>
       <ul class="plain">
         <li>Respectez les propriétés privées et la réglementation locale (certaines communes ou forêts limitent la cueillette).</li>

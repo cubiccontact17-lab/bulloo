@@ -234,4 +234,93 @@ const ZONES = [
     note: "Prairies humides pâturées." }
 ];
 
-if (typeof module !== "undefined") module.exports = { SPECIES, ZONES };
+
+// Fiches descriptives (photo chargée depuis Wikipédia via le titre "wiki").
+const FICHES = {
+  cepe: {
+    wiki: "Boletus edulis",
+    size: "Chapeau 8 à 25 cm",
+    ident: "Chapeau brun noisette, bombé, comme une brioche. Dessous à tubes (une éponge) blancs puis jaune-vert, jamais rouges. Pied épais et ventru, avec un fin réseau blanc en haut. Chair blanche qui ne bleuit pas.",
+    milieu: "Chênaies et châtaigneraies claires, lisières, bords d'allées. En Vendée : massif de Mervent-Vouvant, forêts de Grasla, de La Chaize et d'Aizenay, et sous les pins des forêts littorales.",
+    cuisine: "Poêlé à l'ail et au persil, en omelette ou séché. Retirer les tubes s'ils sont mous."
+  },
+  girolle: {
+    wiki: "Cantharellus cibarius",
+    size: "Chapeau 3 à 10 cm",
+    ident: "Jaune d'œuf, en forme d'entonnoir aux bords ondulés. Dessous avec des plis épais et fourchus qui descendent sur le pied (pas de vraies lames). Odeur fruitée d'abricot. Chair blanche et ferme.",
+    milieu: "Dans la mousse, sur sol acide, sous chênes, châtaigniers et hêtres. En Vendée : Mervent-Vouvant, Grasla, Bois de la Folie, Haut-Bocage.",
+    cuisine: "Sautée à la poêle, sans trop la laver, avec beurre et échalote."
+  },
+  trompette: {
+    wiki: "Craterellus cornucopioides",
+    size: "Hauteur 5 à 12 cm",
+    ident: "Cornet creux gris-noir, fin comme du cuir. Extérieur gris cendré et lisse, sans lames. Très difficile à voir dans les feuilles mortes.",
+    milieu: "En troupes sous hêtres et chênes, sur sol frais et argileux. En Vendée : Mervent-Vouvant, Parc Soubise, vallée de la Sèvre.",
+    cuisine: "Excellente séchée puis réduite en poudre, ou en sauce avec une volaille."
+  },
+  piedmouton: {
+    wiki: "Hydnum repandum",
+    size: "Chapeau 4 à 15 cm",
+    ident: "Chapeau crème à orangé pâle, irrégulier. Dessous couvert de petits aiguillons (comme des pointes) au lieu de lames. Chair blanche, cassante.",
+    milieu: "En ronds ou en lignes sous feuillus et conifères. Supporte les premiers froids. En Vendée : forêts de feuillus et pinèdes.",
+    cuisine: "Bien cuit à la poêle. Gratter les aiguillons des gros exemplaires, parfois amers."
+  },
+  chanterelletube: {
+    wiki: "Craterellus tubaeformis",
+    size: "Chapeau 2 à 5 cm",
+    ident: "Petit chapeau brun en entonnoir, souvent percé au centre. Dessous avec des plis gris. Pied creux, jaune vif.",
+    milieu: "En grandes colonies dans la mousse humide, sous pins et feuillus, en fin de saison.",
+    cuisine: "Sautée, en fricassée ou en sauce. Se sèche bien."
+  },
+  lactaire: {
+    wiki: "Lactarius deliciosus",
+    size: "Chapeau 5 à 12 cm",
+    ident: "Chapeau orangé à cercles plus foncés, verdissant avec l'âge. À la cassure, il coule un lait ORANGE CAROTTE. Les blessures verdissent.",
+    milieu: "Uniquement sous les pins. En Vendée : forêts des Pays-de-Monts, d'Olonne, de Longeville et de La Tranche, Bois de la Chaize.",
+    cuisine: "Grillé ou poêlé. La couleur orange des urines après consommation est normale."
+  },
+  coulemelle: {
+    wiki: "Macrolepiota procera",
+    size: "Chapeau 10 à 30 cm, pied jusqu'à 40 cm",
+    ident: "Grand chapeau en ombrelle couvert d'écailles brunes, avec un mamelon central. Lames blanches libres. Pied chiné de brun avec un anneau double qui coulisse.",
+    milieu: "Lisières, clairières, bords de chemins et prairies. Partout dans le bocage vendéen et les forêts.",
+    cuisine: "Chapeau seulement, pané ou grillé. Ne jamais cueillir de petits exemplaires."
+  },
+  rose: {
+    wiki: "Agaricus campestris",
+    size: "Chapeau 4 à 10 cm",
+    ident: "Chapeau blanc soyeux. Lames ROSE vif puis brun chocolat, jamais blanches. Pied court avec un anneau fragile, SANS volve à la base. Odeur agréable.",
+    milieu: "Prairies pâturées (chevaux, vaches), jamais en forêt. En Vendée : prairies des marais poitevin et breton, bocage.",
+    cuisine: "Cru en salade quand il est jeune, ou poêlé."
+  },
+  piedbleu: {
+    wiki: "Lepista nuda",
+    size: "Chapeau 6 à 15 cm",
+    ident: "Chapeau lisse lilas à brun-violet. Lames serrées violettes. Pied violet et fibreux, sans anneau ni voile. Odeur fruitée. Sporée rose pâle.",
+    milieu: "Litières épaisses de feuilles ou d'aiguilles, haies, tas de compost, souvent en ronds. Tard en saison.",
+    cuisine: "Toujours bien cuit, jamais cru. Bon en fricassée ou en omelette."
+  },
+  pleurote: {
+    wiki: "Pleurotus ostreatus",
+    size: "Chapeau 5 à 15 cm",
+    ident: "En étages sur le bois. Chapeau gris ardoise à brun, en forme de coquille d'huître. Lames blanches qui descendent sur un pied très court ou absent.",
+    milieu: "Troncs et souches de feuillus (peupliers, hêtres), surtout dans les vallées humides, de l'automne au printemps.",
+    cuisine: "Poêlé ou en tempura. Choisir des exemplaires jeunes et tendres."
+  },
+  morille: {
+    wiki: "Morchella",
+    size: "Hauteur 5 à 15 cm",
+    ident: "Chapeau en nid d'abeilles avec des alvéoles. Coupée en deux, elle est ENTIÈREMENT CREUSE d'un seul tenant, du chapeau au pied.",
+    milieu: "Au printemps, sous frênes et ormes, au bord des haies, des rivières et dans les zones remuées.",
+    cuisine: "TOUJOURS bien cuite, jamais crue (toxique crue). À la crème."
+  },
+  mousseron: {
+    wiki: "Calocybe gambosa",
+    size: "Chapeau 5 à 12 cm",
+    ident: "Charnu, blanc crème. Lames blanches très serrées. Forte odeur de farine fraîche. Pousse en ronds dans l'herbe vers le 23 avril.",
+    milieu: "Prairies, bords de haies et lisières, au printemps.",
+    cuisine: "Poêlé ou en omelette. Très parfumé."
+  }
+};
+
+if (typeof module !== "undefined") module.exports = { SPECIES, ZONES, FICHES };
