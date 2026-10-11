@@ -1,12 +1,10 @@
 // Tests : node --test tests/
 const test = require("node:test");
 const assert = require("node:assert");
-const fs = require("node:fs");
-const path = require("node:path");
 const { SPECIES, ZONES, FICHES } = require("../js/data.js");
 const { scoreSpecies, weatherSummary, levelFor } = require("../js/algo.js");
 
-const outline = new Function(fs.readFileSync(path.join(__dirname, "../js/vendee.js"), "utf8") + "; return VENDEE_OUTLINE;")();
+const { DEPARTEMENTS } = require("../js/departements.js");
 
 function inRing(lat, lon, ring) {
   let inside = false;
@@ -29,9 +27,11 @@ function makeWeather(days, { t = 15, rain = 3, rh = 90, tmin } = {}) {
 const mervent = ZONES.find(z => z.id === "mervent");
 const cepe = SPECIES.find(s => s.id === "cepe");
 
-test("tous les secteurs sont en Vendée", () => {
+test("chaque secteur est dans son département (85 ou 17)", () => {
   for (const z of ZONES) {
-    assert.ok(outline.some(r => inRing(z.lat, z.lon, r)), `${z.name} hors Vendée`);
+    const dep = DEPARTEMENTS.find(d => d.code === z.dept);
+    assert.ok(dep, `${z.name} : département inconnu`);
+    assert.ok(dep.rings.some(r => inRing(z.lat, z.lon, r)), `${z.name} hors ${dep.name}`);
   }
 });
 

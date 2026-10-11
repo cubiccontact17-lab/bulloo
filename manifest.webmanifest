@@ -1,7 +1,7 @@
 {
-  "name": "Champi Vendée — coins à champignons",
-  "short_name": "Champi Vendée",
-  "description": "Carte des coins à champignons comestibles en Vendée avec probabilité de pousse selon la météo.",
+  "name": "Champi 85-17 — coins à champignons Vendée et Charente-Maritime",
+  "short_name": "Champi 85-17",
+  "description": "Carte des coins à champignons comestibles en Vendée et Charente-Maritime avec probabilité de pousse selon la météo.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",

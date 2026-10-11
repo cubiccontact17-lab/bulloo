@@ -73,12 +73,13 @@
   }
 
   // ---------- Carte ----------
-  const bounds = L.latLngBounds(VENDEE_OUTLINE.flat());
+  const bounds = L.latLngBounds(REGION_OUTLINE.flat());
   const map = L.map("map", {
     zoomControl: false,
     maxBounds: bounds.pad(0.25),
     maxBoundsViscosity: 0.8,
-    minZoom: 8
+    minZoom: 7,
+    zoomSnap: 0.5
   }).fitBounds(bounds, { padding: [10, 10] });
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
@@ -97,12 +98,15 @@
   osm.addTo(map);
   L.control.layers({ "Plan": osm, "Relief / forêts": topo, "Satellite": sat }, null, { position: "topright" }).addTo(map);
 
-  // Masque hors Vendée + contour du département
+  // Masque hors Vendée et Charente-Maritime + contours des départements
   const world = [[85, -180], [85, 180], [-85, 180], [-85, -180]];
-  L.polygon([world, ...VENDEE_OUTLINE], {
+  L.polygon([world, ...REGION_OUTLINE], {
     stroke: false, fillColor: "#3d2b1f", fillOpacity: 0.35, interactive: false
   }).addTo(map);
-  L.polygon(VENDEE_OUTLINE, {
+  DEPARTEMENTS.forEach(d => L.polygon(d.rings, {
+    color: "#3d2b1f", weight: 1.5, dashArray: "6 4", fill: false, interactive: false
+  }).addTo(map));
+  L.polygon(REGION_OUTLINE, {
     color: "#3d2b1f", weight: 2.5, fill: false, interactive: false
   }).addTo(map);
 
@@ -573,7 +577,7 @@
       <span class="swatch" style="background:${sp.color}"></span>${sp.name}</button>`).join("");
     showSheet(`
       <h2>${existing ? "Modifier le coin" : "Nouveau coin"}</h2>
-      <p class="muted">Position : ${draft.lat.toFixed(5)}, ${draft.lon.toFixed(5)}${inVendee ? "" : " · ⚠ hors Vendée"}</p>
+      <p class="muted">Position : ${draft.lat.toFixed(5)}, ${draft.lon.toFixed(5)}${inVendee ? "" : " · ⚠ hors Vendée / Charente-Maritime"}</p>
       <form id="coin-form" class="form">
         <label for="coin-name">Nom du coin</label>
         <input id="coin-name" type="text" maxlength="60" required placeholder="Ex. : Chênes du chemin creux" value="${esc(draft.name)}">
@@ -877,7 +881,7 @@
       if (Notification.permission === "default") await Notification.requestPermission();
       if (Notification.permission !== "granted") return toast("Notifications refusées", 3000);
       const reg = await navigator.serviceWorker.ready;
-      reg.showNotification("🍄 Champi Vendée", { body: "Les alertes fonctionnent !", icon: "icons/icon-192.png", tag: "champi-test" });
+      reg.showNotification("🍄 Champi 85-17", { body: "Les alertes fonctionnent !", icon: "icons/icon-192.png", tag: "champi-test" });
     });
     const reset = $("#al-reset");
     if (reset) reset.addEventListener("click", () => {
@@ -892,7 +896,7 @@
         coins: state.coins, observations: state.observations, alertSettings: state.alertSettings };
       const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
       const link = document.createElement("a");
-      link.href = url; link.download = `champi-vendee-${todayStr()}.json`;
+      link.href = url; link.download = `champi-85-17-${todayStr()}.json`;
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
@@ -915,7 +919,7 @@
         toast(`Import réussi : ${coins.length} coin${coins.length > 1 ? "s" : ""}, ${obs.length} réponse${obs.length > 1 ? "s" : ""}`, 3500);
         showAlerts();
       } catch (err) {
-        toast("Fichier non reconnu : choisissez un export Champi Vendée (.json)", 4000);
+        toast("Fichier non reconnu : choisissez un export Champi (.json)", 4000);
       }
     });
   }
@@ -1014,7 +1018,7 @@
         zIndexOffset: 5000, interactive: false
       }).addTo(map);
       if (bounds.pad(0.1).contains(ll)) map.flyTo(ll, 11, { duration: 0.8 });
-      else toast("Vous êtes hors de Vendée : les distances restent affichées.", 3500);
+      else toast("Vous êtes hors Vendée / Charente-Maritime : les distances restent affichées.", 3500);
       if (openSheet.kind === "zone") showZone(openSheet.id);
       if (openSheet.kind === "list") showList();
     }, () => toast("Position refusée ou indisponible", 3000), { enableHighAccuracy: true, timeout: 15000 });

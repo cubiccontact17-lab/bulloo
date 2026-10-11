@@ -1,11 +1,11 @@
-# Champi Vendée 🍄
+# Champi 85-17 🍄
 
-Application pour téléphone (web app installable) qui indique les **coins à champignons comestibles en Vendée**, avec une **probabilité de pousse calculée à partir de la météo**.
+Application pour téléphone (web app installable) qui indique les **coins à champignons comestibles en Vendée (85) et en Charente-Maritime (17)**, avec une **probabilité de pousse calculée à partir de la météo**.
 
 ## Fonctionnalités
 
-- Carte limitée à la Vendée (contour du département, reste grisé).
-- 24 secteurs : forêts de Mervent-Vouvant, Aizenay, La Chaize, Grasla, Pays-de-Monts, Olonne, Longeville, Jard, La Tranche, Noirmoutier, Haut-Bocage, vallées, bocages et prairies des marais.
+- Carte limitée à la Vendée et à la Charente-Maritime (contours des départements, reste grisé).
+- 38 secteurs. **Vendée** (24) : forêts de Mervent-Vouvant, Aizenay, La Chaize, Grasla, Pays-de-Monts, Olonne, Longeville, Jard, La Tranche, Noirmoutier, Haut-Bocage, vallées, bocages et prairies des marais. **Charente-Maritime** (14) : forêts de la Coubre, Saint-Trojan et Saumonards (Oléron), Île de Ré, Suzac, Benon, Aulnay, Double saintongeaise (Montendre, Montguyon), Haute-Saintonge, vallées de la Charente et de la Boutonne, marais de Brouage et de Marans.
 - 12 champignons **comestibles uniquement**, chacun avec **sa couleur** :
 
 | Couleur | Champignon | Milieu |
@@ -68,4 +68,4 @@ Tests : `node --test tests/*.test.js`
 
 Ne mangez jamais un champignon sans identification certaine : faites vérifier votre cueillette par un pharmacien ou une association mycologique. Les secteurs sont des **milieux favorables**, pas des coins garantis ; la probabilité est indicative. Respectez les propriétés privées et la réglementation locale.
 
-Fond de carte © OpenStreetMap, contour du département : france-geojson, météo : Open-Meteo, carte : Leaflet.
+Fond de carte © OpenStreetMap, contours des départements : france-geojson, météo : Open-Meteo, carte : Leaflet.

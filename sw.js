@@ -1,6 +1,6 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v3";
+const VERSION = "champi-v4";
 const SHELL = [
   "./",
   "index.html",
@@ -9,7 +9,7 @@ const SHELL = [
   "js/algo.js",
   "js/user.js",
   "js/data.js",
-  "js/vendee.js",
+  "js/departements.js",
   "manifest.webmanifest",
   "icons/icon.svg",
   "icons/icon-192.png",
