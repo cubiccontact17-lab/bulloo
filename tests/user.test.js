@@ -83,3 +83,37 @@ test("alertes : seules les espèces surveillées", () => {
     settings: { threshold: 60, coins: true, zones: true, species: ["lactaire"] } });
   assert.ok(alerts.length > 0 && alerts.every(a => a.speciesId === "lactaire"));
 });
+
+test("météo : Météo-France en priorité, complété par le modèle par défaut", () => {
+  const time = ["2026-10-10", "2026-10-11", "2026-10-12"];
+  const daily = { time };
+  ["temperature_2m_max", "temperature_2m_min", "precipitation_sum", "relative_humidity_2m_mean"].forEach(v => {
+    daily[`${v}_meteofrance_seamless`] = [1, 2, null];
+    daily[`${v}_best_match`] = [10, 20, 30];
+  });
+  const [w] = user.parseWeather([{ daily }]);
+  assert.deepStrictEqual(w.precip, [1, 2, 30]);
+  assert.deepStrictEqual(w.tmax, [1, 2, 30]);
+  assert.strictEqual(w.mfDays, 2);
+});
+
+test("météo : réponse sans modèle (format simple) toujours lue", () => {
+  const [w] = user.parseWeather({ daily: { time: ["2026-10-10"], temperature_2m_max: [12], temperature_2m_min: [5], precipitation_sum: [3], relative_humidity_2m_mean: [90] } });
+  assert.deepStrictEqual([w.tmax[0], w.tmin[0], w.precip[0], w.rh[0], w.mfDays], [12, 5, 3, 90, 0]);
+});
+
+test("météo : l'adresse demande Météo-France et les coins au point exact", () => {
+  const url = user.weatherUrl([...data.ZONES, { lat: 46.1236, lon: -1.2347 }], "meteofrance_seamless,best_match");
+  assert.ok(url.includes("models=meteofrance_seamless,best_match"));
+  assert.ok(url.includes("46.1236") && url.includes("-1.2347"));
+});
+
+test("un coin avec sa propre météo l'utilise plutôt que celle du secteur", () => {
+  const zones = fakeWeather();
+  const dry = fakeWeather({ rain: 0, rh: 55 })[0];
+  const sec = user.evaluateCoin(coin, zones, 21, null);
+  const own = user.evaluateCoin(coin, zones, 21, null, { c1: dry });
+  assert.strictEqual(sec.precise, false);
+  assert.strictEqual(own.precise, true);
+  assert.ok(own.scores[0].score < sec.scores[0].score);
+});

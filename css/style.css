@@ -477,3 +477,4 @@ label.btn { cursor: pointer; }
 .coin-ico { color: var(--accent); font-size: 18px; width: 14px; text-align: center; }
 .sp-head { display: flex; align-items: center; gap: 10px; }
 .sp-head .name em { display: block; font-size: 11px; color: var(--muted); }
+.source { font-size: 11px; color: var(--muted); margin: 8px 0 0; }

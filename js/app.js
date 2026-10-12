@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const CACHE_KEY = "champi-meteo-v1";
+  const CACHE_KEY = "champi-meteo-v2";
   const CACHE_TTL = 60 * 60 * 1000; // 1 h
   const MIN_SHOWN = 15;             // score minimum pour afficher une espèce
   const PREFS_KEY = "champi-prefs-v1";
@@ -121,26 +121,29 @@
   });
   let userMarker = null;
 
-  // ---------- Météo (Open-Meteo, gratuit, sans clé) ----------
-  async function loadWeather() {
-    const cached = storeGet(CACHE_KEY);
-    const fresh = cached && cached.zones === ZONES.length && Date.now() - cached.at < CACHE_TTL &&
-      cached.data[0].time.includes(todayStr());
-    if (fresh) return useWeather(cached.data, cached.at);
+  // ---------- Météo (Météo-France AROME / ARPEGE via Open-Meteo) ----------
+  // Une seule requête pour les secteurs et pour chacun de mes coins (au point exact).
+  const coinSignature = () => state.coins.map(c => `${c.id}@${c.lat.toFixed(4)},${c.lon.toFixed(4)}`).join(";");
 
-    toast("Chargement de la météo…");
+  async function loadWeather(force) {
+    const cached = storeGet(CACHE_KEY);
+    const usable = cached && cached.zones === ZONES.length && cached.data && cached.data[0];
+    const fresh = usable && !force && Date.now() - cached.at < CACHE_TTL &&
+      cached.data[0].time.includes(todayStr()) && cached.coins === coinSignature();
+    if (fresh) return useWeather(cached, cached.at);
+
+    if (!force) toast("Chargement de la météo…");
     try {
-      const res = await fetch(weatherUrl());
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = parseWeather(await res.json());
-      if (data.length !== ZONES.length) throw new Error("réponse incomplète");
-      storeSet(CACHE_KEY, { at: Date.now(), zones: ZONES.length, data });
+      const w = await fetchWeather(state.coins);
+      const entry = { at: Date.now(), zones: ZONES.length, coins: coinSignature(),
+        data: w.zones, coinWeather: w.coinWeather, source: w.source };
+      storeSet(CACHE_KEY, entry);
       hideToast();
-      useWeather(data, Date.now());
+      useWeather(entry, entry.at);
     } catch (err) {
-      if (cached && cached.data) {
+      if (usable) {
         toast("Hors ligne : météo du " + fmtDateTime(cached.at), 4000);
-        useWeather(cached.data, cached.at);
+        useWeather(cached, cached.at);
       } else {
         toast("Impossible de charger la météo. Vérifiez votre connexion.", 6000);
         $("#subtitle").textContent = "Météo indisponible";
@@ -148,8 +151,11 @@
     }
   }
 
-  function useWeather(data, at) {
+  function useWeather(entry, at) {
+    const data = entry.data;
     state.weather = data;
+    state.coinWeather = entry.coinWeather || {};
+    state.weatherSource = entry.source || "auto";
     state.fetchedAt = at;
     state.todayIdx = todayIndex(data);
     const maxDay = data[0].time.length - 1 - state.todayIdx;
@@ -158,6 +164,11 @@
     compute();
     checkAlerts();
   }
+
+  const SOURCE_LABEL = {
+    meteofrance: "Météo-France (AROME 1,3 km / ARPEGE), complété au-delà de 4 jours",
+    auto: "Open-Meteo (meilleur modèle disponible)"
+  };
 
   // ---------- Calcul ----------
   function targetDate() {
@@ -169,7 +180,7 @@
     if (!state.weather) return;
     const t = state.todayIdx + state.day;
     state.results = ZONES.map((zone, i) => evaluateZone(i, state.weather, t, state.calib));
-    state.coinResults = state.coins.map(c => evaluateCoin(c, state.weather, t, state.calib));
+    state.coinResults = state.coins.map(c => evaluateCoin(c, state.weather, t, state.calib, state.coinWeather));
     renderMap();
     renderCoins();
     renderSubtitle();
@@ -373,6 +384,7 @@
         <div><b>${ws.hum7 == null ? "–" : Math.round(ws.hum7)} %</b><span>humidité 7 j</span></div>
         <div><b>${ws.frostDays}</b><span>jour(s) de gel</span></div>
       </div>
+      <p class="source">Météo : ${SOURCE_LABEL[state.weatherSource] || SOURCE_LABEL.auto}</p>
       <h3>Champignons possibles</h3>
       ${rows || '<p class="muted">Aucune espèce sélectionnée ne correspond à ce milieu.</p>'}
       <div class="btn-row">
@@ -620,6 +632,7 @@
       if (!state.weather) renderCoins();
       toast(existing ? "Coin modifié" : "Coin enregistré", 2000);
       showCoin(coin.id);
+      if (!existing) loadWeather(true);
     });
     const del = $("#coin-delete");
     if (del) del.addEventListener("click", () => {
@@ -662,7 +675,7 @@
         <b class="${o.found ? "ok" : "ko"}">${o.found ? "Trouvé" : "Rien"}</b></li>`).join("");
     showSheet(`
       <h2>★ ${esc(c.name)}</h2>
-      <p class="muted">Mon coin${dist}${r ? ` · météo du secteur ${r.zone.name}` : ""}</p>
+      <p class="muted">Mon coin${dist}${r ? (r.precise ? " · météo calculée au point exact du coin" : ` · météo du secteur ${r.zone.name} (en attente de la météo du coin)`) : ""}</p>
       ${c.notes ? `<p class="notes">${esc(c.notes)}</p>` : ""}
       ${r ? `<div class="wx">
         <div><b>${fmt1(r.ws.rainLag + r.ws.rainRecent)}</b><span>mm pluie 15 j</span></div>
@@ -670,6 +683,7 @@
         <div><b>${r.ws.hum7 == null ? "–" : Math.round(r.ws.hum7)} %</b><span>humidité 7 j</span></div>
         <div><b>${r.ws.frostDays}</b><span>jour(s) de gel</span></div>
       </div>` : ""}
+      <p class="source">Météo : ${SOURCE_LABEL[state.weatherSource] || SOURCE_LABEL.auto}</p>
       <h3>Chances de pousse ${day}</h3>
       ${rows}
       <div class="btn-row">
@@ -693,7 +707,7 @@
       if (!c) return;
       name = c.name;
       speciesList = c.species;
-      evalAt = t => evaluateCoin(c, state.weather, t, null);
+      evalAt = t => evaluateCoin(c, state.weather, t, null, state.coinWeather);
     } else {
       const i = ZONES.findIndex(z => z.id === id);
       if (i < 0) return;
@@ -780,7 +794,7 @@
 
   async function checkAlerts() {
     if (!state.weather) return;
-    state.alerts = computeAlerts({ weather: state.weather, coins: state.coins, calib: state.calib, settings: state.alertSettings });
+    state.alerts = computeAlerts({ weather: state.weather, coinWeather: state.coinWeather, coins: state.coins, calib: state.calib, settings: state.alertSettings });
     const btn = $("#btn-alerts");
     btn.classList.toggle("has-alerts", state.alertSettings.enabled && state.alerts.length > 0);
     if (openSheet.kind === "alerts") showAlerts();
@@ -963,10 +977,13 @@
     const updated = state.fetchedAt ? fmtDateTime(state.fetchedAt) : "jamais";
     showSheet(`
       <h2>Comment ça marche ?</h2>
-      <p class="muted">Météo mise à jour : ${updated} · source Open-Meteo</p>
+      <p class="muted">Météo mise à jour : ${updated} · ${SOURCE_LABEL[state.weatherSource] || SOURCE_LABEL.auto}</p>
       <div class="alert"><b>⚠ Sécurité :</b> ne mangez jamais un champignon sans identification certaine.
         Faites vérifier votre cueillette par un pharmacien ou une association mycologique.
         En cas de malaise après consommation : appelez le 15 ou le centre antipoison.</div>
+      <h3>La météo</h3>
+      <p>L'appli utilise en priorité les modèles de <b>Météo-France</b> : AROME (maille d'environ 1,3 km) pour les 2 premiers jours, puis ARPEGE jusqu'à environ 4 jours. Au-delà, elle complète avec le meilleur modèle disponible. Les données passent par le service gratuit Open-Meteo.</p>
+      <p>Chaque secteur a sa propre météo. <b>Chacun de vos coins a aussi la sienne</b>, calculée à ses coordonnées exactes : pluie, températures et humidité de votre parcelle.</p>
       <h3>L'algorithme</h3>
       <ul class="plain">
         <li><b>Pluie</b> : les champignons sortent 7 à 14 jours après une bonne pluie. On additionne les pluies de J-14 à J-3 (et un peu des 3 derniers jours) et on compare au besoin de chaque espèce (20 à 40 mm).</li>

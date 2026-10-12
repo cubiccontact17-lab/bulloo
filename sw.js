@@ -1,6 +1,6 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v4";
+const VERSION = "champi-v5";
 const SHELL = [
   "./",
   "index.html",
@@ -30,12 +30,10 @@ importScripts("js/data.js", "js/algo.js", "js/user.js");
 async function backgroundCheck() {
   const data = await readShared("user-data.json");
   if (!data || !data.alertSettings || !data.alertSettings.enabled) return;
-  const res = await fetch(weatherUrl());
-  if (!res.ok) return;
-  const weather = parseWeather(await res.json());
-  if (weather.length !== ZONES.length) return;
+  const w = await fetchWeather(data.coins || []);
   const alerts = computeAlerts({
-    weather,
+    weather: w.zones,
+    coinWeather: w.coinWeather,
     coins: data.coins || [],
     calib: fitCalibration(data.observations || []),
     settings: data.alertSettings

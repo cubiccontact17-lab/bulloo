@@ -8,24 +8,66 @@ const DATA_CACHE = "champi-data";      // copie des données utilisateur lisible
 const ALERT_HORIZON = 3;               // aujourd'hui + 3 jours
 
 // ---------- Météo ----------
-function weatherUrl() {
-  const lats = ZONES.map(z => z.lat.toFixed(3)).join(",");
-  const lons = ZONES.map(z => z.lon.toFixed(3)).join(",");
+// Modèles de Météo-France en priorité : AROME (maille ~1,3 km, 2 jours)
+// puis ARPEGE (jusqu'à ~4 jours). Au-delà, ou si une valeur manque,
+// on complète avec le meilleur modèle disponible choisi par Open-Meteo.
+const MF_MODEL = "meteofrance_seamless";
+const DAILY_VARS = {
+  tmax: "temperature_2m_max",
+  tmin: "temperature_2m_min",
+  precip: "precipitation_sum",
+  rh: "relative_humidity_2m_mean"
+};
+
+// points : liste de { lat, lon } (secteurs puis coins)
+function weatherUrl(points, models) {
+  const pts = points || ZONES;
+  const lats = pts.map(z => z.lat.toFixed(4)).join(",");
+  const lons = pts.map(z => z.lon.toFixed(4)).join(",");
   return "https://api.open-meteo.com/v1/forecast" +
     `?latitude=${lats}&longitude=${lons}` +
-    "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean" +
+    `&daily=${Object.values(DAILY_VARS).join(",")}` +
+    (models ? `&models=${models}` : "") +
     `&past_days=${PAST_DAYS}&forecast_days=${FORECAST_DAYS}&timezone=Europe%2FParis`;
 }
 
+// Lit une réponse Open-Meteo (un ou plusieurs points, un ou plusieurs modèles).
+// Avec plusieurs modèles, les variables portent le suffixe du modèle :
+// on prend Météo-France jour par jour, sinon le modèle par défaut.
 function parseWeather(json) {
   const arr = Array.isArray(json) ? json : [json];
-  return arr.map(r => ({
-    time: r.daily.time,
-    tmax: r.daily.temperature_2m_max,
-    tmin: r.daily.temperature_2m_min,
-    precip: r.daily.precipitation_sum,
-    rh: r.daily.relative_humidity_2m_mean
-  }));
+  return arr.map(r => {
+    const d = r.daily;
+    const w = { time: d.time, mfDays: 0 };
+    for (const [k, v] of Object.entries(DAILY_VARS)) {
+      const mf = d[`${v}_${MF_MODEL}`] || null;
+      const other = d[`${v}_best_match`] || d[v] || [];
+      w[k] = d.time.map((_, i) => (mf && mf[i] != null ? mf[i] : (other[i] != null ? other[i] : null)));
+      if (k === "precip" && mf) w.mfDays = mf.filter(x => x != null).length;
+    }
+    return w;
+  });
+}
+
+// Télécharge la météo des secteurs et de chaque coin (au point exact).
+// Retourne { zones, coinWeather: {idCoin: météo}, source }
+async function fetchWeather(coins) {
+  const list = (coins || []).filter(c => typeof c.lat === "number" && typeof c.lon === "number");
+  const points = [...ZONES, ...list];
+  let lastErr = null;
+  for (const models of [`${MF_MODEL},best_match`, null]) {
+    try {
+      const res = await fetch(weatherUrl(points, models));
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = parseWeather(await res.json());
+      if (data.length !== points.length) throw new Error("réponse incomplète");
+      const coinWeather = {};
+      list.forEach((c, i) => { coinWeather[c.id] = data[ZONES.length + i]; });
+      const source = data[0].mfDays > 0 ? "meteofrance" : "auto";
+      return { zones: data.slice(0, ZONES.length), coinWeather, source };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("météo indisponible");
 }
 
 // Date du jour en France (YYYY-MM-DD)
@@ -127,11 +169,13 @@ function scorePlace(zoneLike, ws, month, place, calib, onlySpecies) {
     .sort((a, b) => b.score - a.score);
 }
 
-function evaluateCoin(coin, weather, t, calib) {
+// La météo du coin lui-même (coinWeather) si on l'a, sinon celle du secteur le plus proche
+function evaluateCoin(coin, weather, t, calib, coinWeather) {
   const zi = nearestZoneIndex(coin);
-  const ws = weatherSummary(weather[zi], t);
+  const own = coinWeather && coinWeather[coin.id];
+  const ws = weatherSummary(own || weather[zi], t);
   const scores = scorePlace(coinAsZone(coin), ws, monthOf(weather, t), placeKey("coin", coin.id), calib, coin.species);
-  return { coin, zone: ZONES[zi], ws, scores };
+  return { coin, zone: ZONES[zi], precise: !!own, ws, scores };
 }
 
 function evaluateZone(i, weather, t, calib) {
@@ -150,7 +194,7 @@ const DEFAULT_ALERTS = {
 };
 
 // Meilleur jour (aujourd'hui → +3 j) par lieu et par espèce au-dessus du seuil
-function computeAlerts({ weather, coins, calib, settings }) {
+function computeAlerts({ weather, coinWeather, coins, calib, settings }) {
   const s = Object.assign({}, DEFAULT_ALERTS, settings || {});
   const t0 = todayIndex(weather);
   const best = {};
@@ -165,7 +209,7 @@ function computeAlerts({ weather, coins, calib, settings }) {
   };
   for (let d = 0; d <= ALERT_HORIZON && t0 + d < weather[0].time.length; d++) {
     const t = t0 + d, date = weather[0].time[t];
-    if (s.coins) (coins || []).forEach(c => consider("coin", c.id, c.name, evaluateCoin(c, weather, t, calib).scores, d, date));
+    if (s.coins) (coins || []).forEach(c => consider("coin", c.id, c.name, evaluateCoin(c, weather, t, calib, coinWeather).scores, d, date));
     if (s.zones) ZONES.forEach((z, i) => consider("zone", z.id, z.name, evaluateZone(i, weather, t, calib).scores, d, date));
   }
   return Object.values(best).sort((a, b) => b.score - a.score || a.day - b.day);
@@ -221,6 +265,6 @@ async function notifyNew(registration, alerts) {
 if (typeof module !== "undefined") {
   module.exports = {
     fitCalibration, calibrateScore, computeAlerts, coinAsZone, nearestZoneIndex,
-    evaluateCoin, evaluateZone, parseWeather, todayStr, placeKey, DEFAULT_ALERTS
+    evaluateCoin, evaluateZone, parseWeather, weatherUrl, fetchWeather, todayStr, placeKey, DEFAULT_ALERTS
   };
 }

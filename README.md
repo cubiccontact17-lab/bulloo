@@ -38,7 +38,7 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 
 ## L'algorithme (`js/algo.js`)
 
-Pour chaque secteur, la météo journalière vient d'[Open-Meteo](https://open-meteo.com) (gratuit, sans clé) : 21 jours passés + 7 jours de prévision.
+La météo journalière (21 jours passés + 7 jours de prévision) vient en priorité des modèles de **Météo-France** : AROME, maille d'environ 1,3 km, puis ARPEGE jusqu'à environ 4 jours. Au-delà, ou si une valeur manque, elle est complétée jour par jour par le meilleur modèle disponible. Les données passent par [Open-Meteo](https://open-meteo.com) (`models=meteofrance_seamless,best_match`, gratuit, sans clé). La météo est demandée pour chaque secteur et **au point exact de chaque coin personnel**, en une seule requête.
 
 | Facteur | Calcul |
 |---|---|
