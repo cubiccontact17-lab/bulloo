@@ -52,4 +52,12 @@ except Exception as e:
     print("lecture impossible :", e, open("/tmp/f.json").read()[:300])
 PY
 done
+# Requêtes exactes de l'appli sur la Coubre (forêt très morcelée)
+for BB in "-1.2400,45.6800,-1.2000,45.7200" "-1.2000,45.6800,-1.1600,45.7200" "-1.2400,45.7200,-1.2000,45.7600"; do
+  for COUNT in 2000 1000 500; do
+    U="https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=LANDCOVER.FORESTINVENTORY.V2:formation_vegetale&SRSNAME=EPSG:4326&BBOX=$BB,EPSG:4326&COUNT=$COUNT&OUTPUTFORMAT=application/json"
+    R=$(curl -sS -H "Origin: https://cubiccontact17-lab.github.io" -D /tmp/h -o /tmp/f -w "%{http_code} %{size_download}o %{time_total}s" "$U")
+    echo "$BB COUNT=$COUNT → $R · CORS: $(grep -i '^access-control-allow-origin' /tmp/h | tr -d '\r' || echo absent) · $(python3 -c "import json;d=json.load(open('/tmp/f'));print(len(d.get('features',[])),'bois')" 2>/dev/null || head -c 300 /tmp/f)"
+  done
+done
 exit 0
