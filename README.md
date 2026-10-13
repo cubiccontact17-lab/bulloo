@@ -6,7 +6,7 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 
 - Carte limitée à la Vendée et à la Charente-Maritime (contours des départements, reste grisé).
 - 38 secteurs. **Vendée** (24) : forêts de Mervent-Vouvant, Aizenay, La Chaize, Grasla, Pays-de-Monts, Olonne, Longeville, Jard, La Tranche, Noirmoutier, Haut-Bocage, vallées, bocages et prairies des marais. **Charente-Maritime** (14) : forêts de la Coubre, Saint-Trojan et Saumonards (Oléron), Île de Ré, Suzac, Benon, Aulnay, Double saintongeaise (Montendre, Montguyon), Haute-Saintonge, vallées de la Charente et de la Boutonne, marais de Brouage et de Marans.
-- 12 champignons **comestibles uniquement**, chacun avec **sa couleur** :
+- 13 champignons **comestibles uniquement**, chacun avec **sa couleur** :
 
 | Couleur | Champignon | Milieu |
 |---|---|---|
@@ -22,11 +22,19 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 | 🔵 `#4f86c6` | Pleurote en huître | bois mort |
 | 🔴 `#c1121f` | Morille | haies, lisières (printemps) |
 | ⚪ `#8d99ae` | Mousseron de la Saint-Georges | prairies, haies (printemps) |
+| 🟢 `#c6d81e` | Amanite des Césars | chênes, châtaigniers (rare, cueilleurs expérimentés, score plafonné) |
 
 - Sélecteur de jour : aujourd'hui + 7 jours de prévision.
 - Fiche de chaque secteur : météo (pluie 15 j, température, humidité, gel), score par espèce, conseils, **confusions dangereuses**, bouton itinéraire.
 - Classement des meilleurs coins, géolocalisation et distances.
 - Fonctionne hors connexion avec la dernière météo connue.
+
+## Carte
+
+- Fonds **IGN** (Géoplateforme, gratuits, zoom 19) : Plan IGN et photos aériennes. OpenStreetMap et OpenTopoMap restent disponibles.
+- Couche **Essences forestières** (BD Forêt V2) : un appui sur une forêt interroge l'IGN (GetFeatureInfo) pour obtenir le type de peuplement (chênes, châtaigniers, pins…). L'appli en déduit les champignons possibles et propose d'enregistrer l'endroit comme coin.
+- Couche **Cadastre** (parcelles, à partir du zoom 14), pour repérer les propriétés.
+- `tools/verifier-cartes.sh` (workflow « Vérifier les fonds de carte IGN ») contrôle que ces services répondent.
 
 ## Mes coins, sorties, alertes (`js/user.js`)
 

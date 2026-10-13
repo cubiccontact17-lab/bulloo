@@ -1,6 +1,6 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v5";
+const VERSION = "champi-v6";
 const SHELL = [
   "./",
   "index.html",
@@ -21,7 +21,7 @@ const SHELL = [
 ];
 const TILE_CACHE = "champi-tiles";
 const PHOTO_CACHE = "champi-photos";
-const MAX_TILES = 800;
+const MAX_TILES = 1500;
 
 // Données et algorithme partagés avec l'application (définit DATA_CACHE, computeAlerts…)
 importScripts("js/data.js", "js/algo.js", "js/user.js");
@@ -92,8 +92,11 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // Tuiles de carte : cache d'abord
-  if (/tile|arcgisonline/.test(url.hostname)) {
+  // Interrogation de la carte forestière : toujours le réseau
+  if (url.searchParams.get("REQUEST") === "GetFeatureInfo") return;
+
+  // Tuiles de carte (IGN, OpenStreetMap…) : cache d'abord
+  if (/tile|arcgisonline|geopf\.fr/.test(url.hostname)) {
     e.respondWith(caches.open(TILE_CACHE).then(async cache => {
       const hit = await cache.match(e.request);
       if (hit) return hit;

@@ -111,6 +111,28 @@ function coinAsZone(coin) {
 
 const placeKey = (kind, id) => `${kind}:${id}`;
 
+// ---------- Carte forestière IGN (BD Forêt V2) ----------
+// Traduit le type de formation végétale (champ "tfv") et l'essence
+// en habitats utilisés par l'algorithme.
+function habitatsFromForest(props) {
+  const txt = `${(props && props.tfv) || ""} ${(props && props.essence) || ""}`
+    .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const h = new Set();
+  if (/chene/.test(txt)) { h.add("chenes"); h.add("feuillus"); }
+  if (/chataignier/.test(txt)) { h.add("chataigniers"); h.add("feuillus"); }
+  if (/hetre/.test(txt)) { h.add("hetres"); h.add("feuillus"); }
+  if (/feuillu|robinier|frene|charme|bouleau/.test(txt)) h.add("feuillus");
+  if (/\bpins?\b|conifere|douglas|sapin|epicea|meleze/.test(txt)) h.add("pins");
+  if (/peupl/.test(txt)) { h.add("boismort"); h.add("feuillus"); }
+  if (/lande|ouverte|sans couvert/.test(txt)) h.add("lisiere");
+  if (/herbace/.test(txt)) h.add("prairies");
+  return [...h];
+}
+
+function speciesForHabitats(habitats) {
+  return SPECIES.filter(sp => sp.habitats.some(x => habitats.includes(x)));
+}
+
 // ---------- Apprentissage ----------
 // Petite régression logistique : un biais par espèce (partout) et un biais
 // par espèce dans chaque lieu,
@@ -265,6 +287,6 @@ async function notifyNew(registration, alerts) {
 if (typeof module !== "undefined") {
   module.exports = {
     fitCalibration, calibrateScore, computeAlerts, coinAsZone, nearestZoneIndex,
-    evaluateCoin, evaluateZone, parseWeather, weatherUrl, fetchWeather, todayStr, placeKey, DEFAULT_ALERTS
+    evaluateCoin, evaluateZone, parseWeather, weatherUrl, fetchWeather, todayStr, habitatsFromForest, speciesForHabitats, placeKey, DEFAULT_ALERTS
   };
 }

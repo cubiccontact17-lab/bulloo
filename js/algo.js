@@ -13,6 +13,7 @@
 //   sécheresse : pénalité si ni pluie ni humidité sur les 5 derniers jours
 //   saison     : poids mensuel de l'espèce
 //   habitat    : l'espèce doit trouver son habitat dans le secteur
+//   abondance  : plafond pour les espèces rares dans la région
 //
 // Le score final (0 → 100) combine ces facteurs de façon à ce qu'un facteur
 // limitant (pas de pluie, trop froid…) fasse chuter la note.
@@ -82,7 +83,9 @@ function scoreSpecies(species, zone, ws, month) {
 
   const core = 0.45 * rain + 0.35 * temp + 0.2 * hum;
   const limiter = Math.min(rain, temp);
-  const score = Math.round(100 * season * frost * dry * core * (0.4 + 0.6 * limiter));
+  // abondance : espèces rares dans la région (ex. amanite des Césars) plafonnées
+  const abundance = species.abundance == null ? 1 : species.abundance;
+  const score = Math.round(100 * season * frost * dry * core * (0.4 + 0.6 * limiter) * abundance);
   return { score, factors: { season, habitat: 1, rain, temp, hum, frost, dry } };
 }
 

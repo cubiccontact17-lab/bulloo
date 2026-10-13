@@ -478,3 +478,4 @@ label.btn { cursor: pointer; }
 .sp-head { display: flex; align-items: center; gap: 10px; }
 .sp-head .name em { display: block; font-size: 11px; color: var(--muted); }
 .source { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+.alert.expert { border: 2px solid currentColor; font-size: 14px; }

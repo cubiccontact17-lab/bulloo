@@ -117,3 +117,15 @@ test("un coin avec sa propre météo l'utilise plutôt que celle du secteur", ()
   assert.strictEqual(own.precise, true);
   assert.ok(own.scores[0].score < sec.scores[0].score);
 });
+
+test("carte forestière : essences traduites en milieux", () => {
+  const h = p => user.habitatsFromForest(p).sort();
+  assert.deepStrictEqual(h({ tfv: "Forêt fermée de chênes décidus purs", essence: "Chênes décidus" }), ["chenes", "feuillus"]);
+  assert.deepStrictEqual(h({ tfv: "Forêt fermée de pin maritime pur", essence: "Pin maritime" }), ["pins"]);
+  assert.deepStrictEqual(h({ tfv: "Forêt fermée de châtaignier pur" }), ["chataigniers", "feuillus"]);
+  assert.deepStrictEqual(h({ tfv: "Forêt fermée à mélange de feuillus prépondérants et conifères" }), ["feuillus", "pins"]);
+  assert.deepStrictEqual(h({ tfv: "Peupleraie" }), ["boismort", "feuillus"]);
+  assert.deepStrictEqual(h({ tfv: "Forêt fermée sans couvert arboré", essence: "NR" }), ["lisiere"]);
+  const ids = user.speciesForHabitats(["pins"]).map(s => s.id);
+  assert.ok(ids.includes("lactaire") && !ids.includes("rose"));
+});

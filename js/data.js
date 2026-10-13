@@ -154,6 +154,20 @@ const SPECIES = [
     rainMin: 20,
     tips: "En ronds dans l'herbe, au pied des haies, autour du 23 avril. Forte odeur de farine.",
     lookalikes: "Entolome livide (toxique) et inocybe de Patouillard (MORTEL). Vérifier l'odeur de farine et les lames blanches serrées."
+  },
+  {
+    id: "cesar",
+    name: "Amanite des Césars",
+    latin: "Amanita caesarea",
+    color: "#c6d81e",
+    habitats: ["chenes", "chataigniers", "lisiere"],
+    season: { 6: 0.3, 7: 0.7, 8: 1, 9: 1, 10: 0.6 },
+    temp: [14, 18, 26, 31],
+    rainMin: 30,
+    abundance: 0.6, // espèce méridionale, rare dans nos deux départements
+    expert: true,
+    tips: "Espèce de chaleur : après les orages d'été et de début d'automne, dans les chênaies et châtaigneraies claires sur sol sableux ou acide. Rare ici.",
+    lookalikes: "Amanite tue-mouches (TOXIQUE, chapeau rouge à flocons blancs, lames et pied BLANCS). Au stade d'œuf, confusion possible avec les amanites MORTELLES (phalloïde, panthère) : ne jamais cueillir d'œuf fermé."
   }
 ];
 
@@ -363,6 +377,14 @@ const FICHES = {
     ident: "Charnu, blanc crème. Lames blanches très serrées. Forte odeur de farine fraîche. Pousse en ronds dans l'herbe vers le 23 avril.",
     milieu: "Prairies, bords de haies et lisières, au printemps.",
     cuisine: "Poêlé ou en omelette. Très parfumé."
+  },
+  cesar: {
+    wiki: "Amanita caesarea",
+    size: "Chapeau 8 à 20 cm",
+    ident: "Chapeau orange vif à rouge orangé, lisse, sans flocons blancs (ou un seul grand lambeau blanc). Lames JAUNE D'OR. Pied JAUNE avec un anneau jaune. Grande volve blanche en sac à la base. Jeune, il sort d'un « œuf » blanc.",
+    milieu: "Chênaies et châtaigneraies claires et chaudes, sols sableux ou acides, lisières bien exposées. Espèce plutôt méridionale : rare en Vendée et en Charente-Maritime, surtout après les étés chauds et orageux (Double saintongeaise, Mervent-Vouvant, Benon).",
+    cuisine: "Réputée la meilleure des amanites, crue en fines lamelles ou juste poêlée. Seulement si l'identification est CERTAINE : faites-la vérifier par un pharmacien.",
+    expertNote: "Réservée aux cueilleurs expérimentés. Les trois critères doivent être réunis : lames jaunes, pied jaune, volve blanche en sac. Un seul critère blanc (lames ou pied) : ne pas cueillir."
   }
 };
 

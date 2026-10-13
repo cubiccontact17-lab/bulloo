@@ -8,6 +8,7 @@
   const COINS_KEY = "champi-coins-v1";
   const OBS_KEY = "champi-sorties-v1";
   const ALERTS_KEY = "champi-alertes-v1";
+  const MAP_KEY = "champi-carte-v1";
 
   const state = {
     day: 0,
@@ -83,20 +84,48 @@
   }).fitBounds(bounds, { padding: [10, 10] });
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  // Fonds de carte IGN (Géoplateforme, gratuits) : Plan IGN, photos aériennes,
+  // carte forestière (essences d'arbres) et cadastre, jusqu'au zoom 19.
+  const IGN_ATTR = '&copy; <a href="https://www.ign.fr">IGN</a> – Géoplateforme';
+  const ignUrl = (layer, style, format) => "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
+    `&LAYER=${layer}&STYLE=${encodeURIComponent(style)}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${format}`;
+  const ign = (layer, style, format, opts) => L.tileLayer(ignUrl(layer, style, format),
+    Object.assign({ maxZoom: 19, attribution: IGN_ATTR }, opts));
+
+  const BASES = {
+    "Plan IGN": ign("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "normal", "image/png"),
+    "Photos aériennes IGN": ign("ORTHOIMAGERY.ORTHOPHOTOS", "normal", "image/jpeg"),
+    "OpenStreetMap": L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }),
+    "Relief (OpenTopoMap)": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, maxNativeZoom: 17,
+      attribution: '&copy; OpenStreetMap, SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+    })
+  };
+  const forestLayer = ign("LANDCOVER.FORESTINVENTORY.V2", "normal", "image/png",
+    { maxNativeZoom: 16, opacity: 0.55, minZoom: 6 });
+  const cadastreLayer = ign("CADASTRALPARCELS.PARCELLAIRE_EXPRESS", "PCI vecteur", "image/png",
+    { minZoom: 14, opacity: 0.9 });
+  const OVERLAYS = { "Essences forestières (IGN)": forestLayer, "Cadastre (parcelles)": cadastreLayer };
+
+  // Le choix des fonds est mémorisé sur le téléphone
+  const mapPrefs = storeGet(MAP_KEY) || {};
+  (BASES[mapPrefs.base] || BASES["Plan IGN"]).addTo(map);
+  (mapPrefs.overlays || []).forEach(n => OVERLAYS[n] && OVERLAYS[n].addTo(map));
+  L.control.layers(BASES, OVERLAYS, { position: "topright" }).addTo(map);
+  const saveMapPrefs = () => storeSet(MAP_KEY, {
+    base: Object.keys(BASES).find(k => map.hasLayer(BASES[k])),
+    overlays: Object.keys(OVERLAYS).filter(k => map.hasLayer(OVERLAYS[k]))
   });
-  const topo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-    maxZoom: 17,
-    attribution: '&copy; OpenStreetMap, SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+  map.on("baselayerchange overlayadd overlayremove", saveMapPrefs);
+  // Appui sur la carte forestière : type de forêt et champignons possibles à cet endroit
+  map.on("click", e => { if (map.hasLayer(forestLayer)) showForestPoint(e.latlng); });
+  map.on("overlayadd", e => {
+    if (e.layer === forestLayer) toast("Carte forestière : touchez une forêt pour connaître ses arbres et ses champignons", 4500);
+    if (e.layer === cadastreLayer && map.getZoom() < 14) toast("Zoomez pour voir les parcelles du cadastre", 3000);
   });
-  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-    maxZoom: 19,
-    attribution: "Imagerie &copy; Esri"
-  });
-  osm.addTo(map);
-  L.control.layers({ "Plan": osm, "Relief / forêts": topo, "Satellite": sat }, null, { position: "topright" }).addTo(map);
 
   // Masque hors Vendée et Charente-Maritime + contours des départements
   const world = [[85, -180], [85, 180], [-85, 180], [-85, -180]];
@@ -213,7 +242,8 @@
         weight: 1.5,
         opacity: best ? 0.9 : 0.4,
         fillColor: best ? best.species.color : "#9e9e9e",
-        fillOpacity: best ? 0.08 + 0.3 * best.score / 100 : 0.05
+        fillOpacity: best ? 0.08 + 0.3 * best.score / 100 : 0.05,
+        bubblingMouseEvents: false
       }).on("click", () => showZone(r.zone.id)).addTo(zoneLayer);
 
       // Vue d'ensemble : pastilles compactes (3 max) ; zoomé : jusqu'à 8
@@ -470,6 +500,8 @@
         ${on ? "✓ Affiché sur la carte" : "Masqué sur la carte : afficher"}
       </button>
 
+      ${f.expertNote ? `<div class="alert expert">⛔ <b>Cueilleurs expérimentés uniquement.</b> ${f.expertNote}</div>` : ""}
+      ${sp.abundance != null && sp.abundance < 1 ? '<p class="muted">Espèce rare dans la région : son score est volontairement plafonné.</p>' : ""}
       <h3>Comment le reconnaître</h3>
       <p>${f.ident}</p>
       <div class="alert">⚠ <b>Confusions possibles :</b> ${sp.lookalikes}</div>
@@ -579,11 +611,11 @@
     });
   }
 
-  function showCoinForm(id, pos) {
+  function showCoinForm(id, pos, preset) {
     const existing = id ? state.coins.find(c => c.id === id) : null;
     const draft = existing
       ? { ...existing, species: [...existing.species] }
-      : { name: "", lat: pos.lat, lon: pos.lon, species: [], notes: "" };
+      : { name: (preset && preset.name) || "", lat: pos.lat, lon: pos.lon, species: (preset && preset.species) || [], notes: (preset && preset.notes) || "" };
     const inVendee = bounds.pad(0.05).contains([draft.lat, draft.lon]);
     const chips = SPECIES.map(sp => `<button type="button" class="chip pick" data-sp="${sp.id}" aria-pressed="${draft.species.includes(sp.id)}">
       <span class="swatch" style="background:${sp.color}"></span>${sp.name}</button>`).join("");
@@ -695,6 +727,65 @@
       ${hist ? `<ul class="rank">${hist}</ul>` : '<p class="muted">Aucune sortie notée. Après votre passage, notez ce que vous avez trouvé : l\'appli s\'ajustera.</p>'}
     `, "coin", id);
     $("#coin-edit").addEventListener("click", () => showCoinForm(id));
+  }
+
+  // ---------- Carte forestière : que pousse-t-il ici ? ----------
+  async function showForestPoint(latlng) {
+    const z = 16;
+    const p = map.project(latlng, z);
+    const url = "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetFeatureInfo&VERSION=1.0.0" +
+      "&LAYER=LANDCOVER.FORESTINVENTORY.V2&STYLE=normal&FORMAT=image/png&INFOFORMAT=application/json" +
+      `&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILECOL=${Math.floor(p.x / 256)}&TILEROW=${Math.floor(p.y / 256)}` +
+      `&I=${Math.floor(p.x % 256)}&J=${Math.floor(p.y % 256)}`;
+    const pos = { lat: latlng.lat, lon: latlng.lng };
+    showSheet(`<h2>Ce bois</h2><p class="muted">Interrogation de la carte forestière IGN…</p>`, "forest", null);
+    let props = null;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const j = await res.json();
+      props = j.features && j.features[0] ? j.features[0].properties : null;
+    } catch (err) {
+      if (openSheet.kind === "forest") showSheet(`<h2>Ce bois</h2><div class="alert">Carte forestière injoignable. Vérifiez votre connexion.</div>`, "forest", null);
+      return;
+    }
+    if (openSheet.kind !== "forest") return;
+    if (!props) {
+      showSheet(`<h2>Hors forêt</h2>
+        <p class="muted">La carte forestière IGN n'indique pas de bois à cet endroit (prairie, culture, ville, eau…).</p>
+        <p>Touchez une zone colorée de la carte forestière.</p>`, "forest", null);
+      return;
+    }
+    const habitats = habitatsFromForest(props);
+    const list = speciesForHabitats(habitats);
+    let rows = "";
+    if (state.weather) {
+      const zi = nearestZoneIndex(pos);
+      const t = state.todayIdx + state.day;
+      const ws = weatherSummary(state.weather[zi], t);
+      const scores = scorePlace({ habitats }, ws, monthOf(state.weather, t), "point", state.calib, list.map(x => x.id));
+      rows = scores.map(s => `<li data-fiche="${s.species.id}">
+          <span class="swatch" style="background:${s.species.color}"></span>
+          <span class="txt"><b>${s.species.name}</b><span>${s.factors.season === 0 ? "Hors saison" : "Voir la fiche"}</span></span>
+          ${levelBadge(s.score)}<span class="score">${s.score} %</span></li>`).join("");
+    }
+    const essence = props.essence && props.essence !== "NR" ? props.essence : "";
+    showSheet(`
+      <h2>${esc(props.tfv || "Formation boisée")}</h2>
+      <p class="muted">${essence ? `Essence : ${esc(essence)} · ` : ""}source : carte forestière IGN (BD Forêt)</p>
+      <div class="tags">${habitats.map(h => `<span class="tag">${HABITAT_LABELS[h] || h}</span>`).join("")}</div>
+      <h3>Champignons possibles ici</h3>
+      ${rows ? `<ul class="rank">${rows}</ul><p class="source">Chances calculées avec la météo du secteur le plus proche.</p>`
+        : '<p class="muted">Aucun des champignons suivis ne correspond à ce type de forêt.</p>'}
+      <div class="btn-row">
+        <button class="btn" id="forest-coin">★ Enregistrer comme coin</button>
+      </div>
+      <p class="muted" style="margin-top:10px">Une forêt indiquée n'est pas forcément ouverte au public : vérifiez avec le cadastre et respectez les propriétés privées.</p>
+    `, "forest", null);
+    $("#forest-coin").addEventListener("click", () => showCoinForm(null, pos, {
+      species: list.map(x => x.id),
+      notes: props.tfv || ""
+    }));
   }
 
   // ---------- Noter une sortie (apprentissage) ----------

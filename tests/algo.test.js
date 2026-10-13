@@ -88,3 +88,11 @@ test("chaque espèce a une fiche complète", () => {
     for (const k of ["wiki", "size", "ident", "milieu", "cuisine"]) assert.ok(f[k], `${s.name} : ${k}`);
   }
 });
+
+test("amanite des Césars : espèce rare, score plafonné même en conditions idéales", () => {
+  const cesar = SPECIES.find(s => s.id === "cesar");
+  const w = makeWeather(30, { t: 22, rain: 4 });
+  const r = scoreSpecies(cesar, mervent, weatherSummary(w, 21), 8);
+  assert.ok(r.score > 0 && r.score <= 60, `score ${r.score}`);
+  assert.ok(FICHES.cesar.expertNote);
+});
