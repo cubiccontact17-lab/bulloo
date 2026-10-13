@@ -124,7 +124,9 @@ test("carte forestière : essences traduites en milieux", () => {
   assert.deepStrictEqual(h({ tfv: "Forêt fermée de pin maritime pur", essence: "Pin maritime" }), ["pins"]);
   assert.deepStrictEqual(h({ tfv: "Forêt fermée de châtaignier pur" }), ["chataigniers", "feuillus"]);
   assert.deepStrictEqual(h({ tfv: "Forêt fermée à mélange de feuillus prépondérants et conifères" }), ["feuillus", "pins"]);
-  assert.deepStrictEqual(h({ tfv: "Peupleraie" }), ["boismort", "feuillus"]);
+  assert.deepStrictEqual(h({ tfv: "Peupleraie", essence: "Peuplier" }), ["boismort", "lisiere"]);
+  const peup = user.speciesForHabitats(["boismort", "lisiere"]).map(s => s.id);
+  assert.ok(peup.includes("pleurote") && !peup.includes("cepe") && !peup.includes("girolle"));
   assert.deepStrictEqual(h({ tfv: "Forêt fermée sans couvert arboré", essence: "NR" }), ["lisiere"]);
   const ids = user.speciesForHabitats(["pins"]).map(s => s.id);
   assert.ok(ids.includes("lactaire") && !ids.includes("rose"));

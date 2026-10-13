@@ -260,7 +260,7 @@
         return `<i class="dot" style="width:${size}px;height:${size}px;background:${s.species.color}"></i>`;
       }).join("");
       const html = `<div class="zone-dots${vis.length ? "" : " empty"}${compact ? " compact" : ""}">${dots}</div>`;
-      L.marker([r.zone.lat, r.zone.lon], {
+      if (!hideCircles) L.marker([r.zone.lat, r.zone.lon], {
         icon: L.divIcon({ className: "zone-icon", html, iconSize: [0, 0] }),
         title: r.zone.name,
         zIndexOffset: best ? best.score * 10 : 0
