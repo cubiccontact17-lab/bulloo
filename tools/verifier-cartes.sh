@@ -30,4 +30,24 @@ print(int(fx),int(fy),int((fx%1)*256),int((fy%1)*256))")"
   curl -sS -D /tmp/h "$U" | head -c 1200; echo
   grep -i 'access-control-allow-origin' /tmp/h || echo "(pas d'en-tête CORS)"
 done
+# Contours des bois (WFS) : nom de la couche, réponse GeoJSON, CORS, taille
+echo "Couches WFS forêt :"
+curl -sS "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities" | grep -o '<Name>[^<]*FOREST[^<]*</Name>' | sort -u | head
+for BB in "46.50,-0.80,46.56,-0.72" "45.68,-1.25,45.74,-1.15"; do
+  U="https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=LANDCOVER.FORESTINVENTORY.V2:formation_vegetale&SRSNAME=EPSG:4326&BBOX=$BB,EPSG:4326&COUNT=500&OUTPUTFORMAT=application/json&PROPERTYNAME=code_tfv,tfv,essence,geom"
+  echo "BBOX $BB :"
+  curl -sS -D /tmp/h -o /tmp/f.json -w "%{http_code} %{size_download} octets %{time_total}s\n" "$U"
+  grep -i 'access-control-allow-origin' /tmp/h || echo "(pas d'en-tête CORS)"
+  python3 - <<'PY'
+import json, collections
+try:
+    d = json.load(open("/tmp/f.json"))
+    f = d.get("features", [])
+    print(len(f), "bois ; exemple coordonnées :", json.dumps(f[0]["geometry"]["coordinates"])[:80] if f else "-")
+    c = collections.Counter((x["properties"].get("tfv"), x["properties"].get("essence")) for x in f)
+    for k, v in c.most_common(12): print(f"  {v:4d}  {k[0]}  |  {k[1]}")
+except Exception as e:
+    print("lecture impossible :", e, open("/tmp/f.json").read()[:300])
+PY
+done
 exit 0
