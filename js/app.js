@@ -8,7 +8,7 @@
   const COINS_KEY = "champi-coins-v1";
   const OBS_KEY = "champi-sorties-v1";
   const ALERTS_KEY = "champi-alertes-v1";
-  const MAP_KEY = "champi-carte-v1";
+  const MAP_KEY = "champi-carte-v2";
 
   const state = {
     day: 0,
@@ -116,7 +116,8 @@
   const layersControl = L.control.layers(BASES, OVERLAYS, { position: "topright" }).addTo(map);
   const saveMapPrefs = () => storeSet(MAP_KEY, {
     base: Object.keys(BASES).find(k => map.hasLayer(BASES[k])),
-    overlays: Object.keys(OVERLAYS).filter(k => map.hasLayer(OVERLAYS[k]))
+    overlays: Object.keys(OVERLAYS).filter(k => map.hasLayer(OVERLAYS[k])),
+    woodsOff: OVERLAYS["Champignons par bois"] ? !map.hasLayer(OVERLAYS["Champignons par bois"]) : !!mapPrefs.woodsOff
   });
   map.on("baselayerchange overlayadd overlayremove", saveMapPrefs);
   // Appui sur la carte forestière : type de forêt et champignons possibles à cet endroit
@@ -424,10 +425,16 @@
       <h3>Champignons possibles</h3>
       ${rows || '<p class="muted">Aucune espèce sélectionnée ne correspond à ce milieu.</p>'}
       <div class="btn-row">
-        <button class="btn" data-sortie="zone:${zone.id}">📝 Noter ma sortie</button>
+        <button class="btn" id="zone-woods">🌳 Voir les bois</button>
+        <button class="btn ghost" data-sortie="zone:${zone.id}">📝 Noter ma sortie</button>
         <a class="btn ghost" href="${nav}" target="_blank" rel="noopener">🧭 Itinéraire</a>
       </div>
     `, "zone", id);
+    $("#zone-woods").addEventListener("click", () => {
+      if (!map.hasLayer(woodsLayer)) woodsLayer.addTo(map);
+      closeSheet();
+      map.flyTo([zone.lat, zone.lon], 14, { duration: 0.8 });
+    });
   }
 
   // ---------- Fiches espèces ----------
@@ -744,7 +751,23 @@
   const woodsLayer = L.layerGroup();
   const woodCells = new Map();     // clé de carré → { features } ou { loading: true }
   const woodScoreCache = new Map(); // secteur|milieux|jour → scores
-  let woodsHintShown = false;
+  let woodsError = false;
+
+  // Bandeau sur la carte : invite à zoomer, chargement, erreur
+  function updateWoodsHint() {
+    const el = $("#woods-hint");
+    if (!map.hasLayer(woodsLayer)) { el.hidden = true; return; }
+    if (map.getZoom() < WOODS_MIN_ZOOM) {
+      el.textContent = "🔍 Zoomez ici pour voir les champignons de chaque bois";
+      el.dataset.action = "zoom";
+      el.hidden = false;
+      return;
+    }
+    const loading = visibleCells().some(c => woodCells.get(c.key) && woodCells.get(c.key).loading);
+    if (loading) { el.textContent = "Chargement des bois…"; el.dataset.action = ""; el.hidden = false; return; }
+    if (woodsError) { el.textContent = "Bois indisponibles (réseau ?) · toucher pour réessayer"; el.dataset.action = "retry"; el.hidden = false; return; }
+    el.hidden = true;
+  }
 
   function woodScores(habitats, pos, onlyEnabled) {
     if (!state.weather) return [];
@@ -788,28 +811,31 @@
       if (woodCells.size > 60) woodCells.delete(woodCells.keys().next().value);
     } catch (e) {
       woodCells.delete(c.key);
-      toast("Contours des bois indisponibles pour l'instant", 3000);
+      woodsError = true;
     }
     renderWoods();
+    updateWoodsHint();
   }
 
   function updateWoods() {
     if (!map.hasLayer(woodsLayer)) return;
     if (map.getZoom() < WOODS_MIN_ZOOM) {
       woodsLayer.clearLayers();
+      updateWoodsHint();
       return;
     }
     const cells = visibleCells();
-    if (cells.length > 16) return; // vue trop grande (écran très large)
+    if (cells.length > 30) return; // vue trop grande (écran très large)
     cells.filter(c => !woodCells.has(c.key)).forEach(loadWoodCell);
     renderWoods();
+    updateWoodsHint();
   }
 
   function renderWoods() {
     woodsLayer.clearLayers();
     if (!map.hasLayer(woodsLayer) || map.getZoom() < WOODS_MIN_ZOOM) return;
     const seen = new Set();
-    const showDots = map.getZoom() >= 14;
+    const z = map.getZoom();
     let dots = 0;
     visibleCells().forEach(c => {
       const cell = woodCells.get(c.key);
@@ -835,13 +861,14 @@
         geo.eachLayer(l => { l.options.bubblingMouseEvents = false; });
         geo.on("click", () => renderForestSheet(f.properties, pos));
         woodsLayer.addLayer(geo);
-        // pastilles des 3 champignons les plus probables sur les bois assez grands
-        if (showDots && best && dots < 300) {
+        // pastilles sur chaque parcelle : le meilleur champignon, ou les 3 meilleurs si la parcelle est assez grande
+        if (best && dots < 800) {
           const bb = geo.getBounds();
           const px = map.latLngToContainerPoint(bb.getNorthEast()).x - map.latLngToContainerPoint(bb.getSouthWest()).x;
-          if (px > 45) {
+          if (px > 10) {
             dots++;
-            const html = `<div class="zone-dots compact wood">${scores.slice(0, 3).map(x =>
+            const n = px > 34 && z >= 14 ? 3 : px > 24 ? 2 : 1;
+            const html = `<div class="zone-dots compact wood">${scores.slice(0, n).map(x =>
               `<i class="dot" style="width:${Math.round(7 + x.score / 14)}px;height:${Math.round(7 + x.score / 14)}px;background:${x.species.color}"></i>`).join("")}</div>`;
             woodsLayer.addLayer(L.marker(center, {
               icon: L.divIcon({ className: "zone-icon", html, iconSize: [0, 0] }),
@@ -855,17 +882,19 @@
 
   OVERLAYS["Champignons par bois"] = woodsLayer;
   layersControl.addOverlay(woodsLayer, "Champignons par bois");
-  // « Champignons par bois » est actif par défaut
-  (mapPrefs.overlays || ["Champignons par bois"]).forEach(n => OVERLAYS[n] && OVERLAYS[n].addTo(map));
+  // « Champignons par bois » est toujours actif, sauf si on l'a décoché soi-même
+  (mapPrefs.overlays || []).forEach(n => OVERLAYS[n] && OVERLAYS[n].addTo(map));
+  if (!mapPrefs.woodsOff) woodsLayer.addTo(map);
 
   map.on("moveend", updateWoods);
   map.on("overlayadd", e => { if (e.layer === woodsLayer) updateWoods(); });
-  map.on("zoomend", () => {
-    if (map.hasLayer(woodsLayer) && map.getZoom() < WOODS_MIN_ZOOM && map.getZoom() >= 11 && !woodsHintShown) {
-      woodsHintShown = true;
-      toast("Zoomez encore pour voir les champignons bois par bois", 3500);
-    }
+  map.on("zoomend overlayremove", updateWoodsHint);
+  $("#woods-hint").addEventListener("click", () => {
+    const el = $("#woods-hint");
+    if (el.dataset.action === "zoom") map.flyTo(map.getCenter(), 14, { duration: 0.8 });
+    if (el.dataset.action === "retry") { woodsError = false; updateWoods(); }
   });
+  updateWoodsHint();
 
   // ---------- Carte forestière : que pousse-t-il ici ? ----------
   async function showForestPoint(latlng) {
