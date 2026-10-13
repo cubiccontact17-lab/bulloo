@@ -410,7 +410,6 @@
       }).join("");
 
     const dist = state.userPos ? ` · à ${distanceKm(state.userPos, zone).toFixed(0)} km` : "";
-    const nav = `https://www.google.com/maps/dir/?api=1&destination=${zone.lat},${zone.lon}`;
     showSheet(`
       <h2>${zone.name}</h2>
       <p class="muted">${zone.note}${dist}</p>
@@ -427,8 +426,8 @@
       <div class="btn-row">
         <button class="btn" id="zone-woods">🌳 Voir les bois</button>
         <button class="btn ghost" data-sortie="zone:${zone.id}">📝 Noter ma sortie</button>
-        <a class="btn ghost" href="${nav}" target="_blank" rel="noopener">🧭 Itinéraire</a>
       </div>
+      ${routeBlock(zone.lat, zone.lon)}
     `, "zone", id);
     $("#zone-woods").addEventListener("click", () => {
       if (!map.hasLayer(woodsLayer)) woodsLayer.addTo(map);
@@ -700,7 +699,6 @@
     if (!c) return closeSheet();
     const r = coinResult(id);
     const dist = state.userPos ? ` · à ${distKm(state.userPos, c).toFixed(0)} km` : "";
-    const nav = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lon}`;
     const day = state.day === 0 ? "aujourd'hui" : targetDate().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" });
     const rows = r ? r.scores.map(s => `<div class="sp">
         <div class="sp-head">
@@ -733,13 +731,32 @@
       ${rows}
       <div class="btn-row">
         <button class="btn" data-sortie="coin:${c.id}">📝 Noter ma sortie</button>
-        <a class="btn ghost" href="${nav}" target="_blank" rel="noopener">🧭 Itinéraire</a>
         <button class="btn ghost" id="coin-edit">✏️ Modifier</button>
       </div>
+      ${routeBlock(c.lat, c.lon)}
       <h3>Mes sorties ici</h3>
       ${hist ? `<ul class="rank">${hist}</ul>` : '<p class="muted">Aucune sortie notée. Après votre passage, notez ce que vous avez trouvé : l\'appli s\'ajustera.</p>'}
     `, "coin", id);
     $("#coin-edit").addEventListener("click", () => showCoinForm(id));
+  }
+
+  // ---------- Itinéraire en voiture ----------
+  // Ouvre l'appli de navigation du téléphone (Google Maps, Waze ou Plans sur iPhone).
+  // La destination est le cœur du bois : le GPS s'arrête au point accessible le plus proche.
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  function routeBlock(lat, lon) {
+    const ll = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+    const dist = state.userPos ? `<span class="muted"> · ${distKm(state.userPos, { lat, lon }).toFixed(0)} km à vol d'oiseau</span>` : "";
+    const google = `https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=driving`;
+    const waze = `https://waze.com/ul?ll=${ll}&navigate=yes`;
+    const apple = `https://maps.apple.com/?daddr=${ll}&dirflg=d`;
+    return `<div class="route">
+      <a class="btn route-main" href="${isIOS ? apple : google}" target="_blank" rel="noopener">🚗 Itinéraire en voiture</a>${dist}
+      <div class="route-alt">Autre appli :
+        ${isIOS ? `<a href="${google}" target="_blank" rel="noopener">Google Maps</a> ·` : ""}
+        <a href="${waze}" target="_blank" rel="noopener">Waze</a>
+      </div>
+    </div>`;
   }
 
   // ---------- Champignons par bois (contours BD Forêt, WFS IGN) ----------
@@ -976,11 +993,12 @@
       <h2>${esc(props.tfv || "Formation boisée")}</h2>
       <p class="muted">${essence ? `Essence : ${esc(essence)} · ` : ""}source : carte forestière IGN (BD Forêt)</p>
       <div class="tags">${habitats.map(h => `<span class="tag">${HABITAT_LABELS[h] || h}</span>`).join("")}</div>
+      ${routeBlock(pos.lat, pos.lon)}
       <h3>Champignons possibles ici</h3>
       ${rows ? `<ul class="rank">${rows}</ul><p class="source">Chances calculées avec la météo du secteur le plus proche.</p>`
         : '<p class="muted">Aucun des champignons suivis ne correspond à ce type de forêt.</p>'}
       <div class="btn-row">
-        <button class="btn" id="forest-coin">★ Enregistrer comme coin</button>
+        <button class="btn ghost" id="forest-coin">★ Enregistrer comme coin</button>
       </div>
       <p class="muted" style="margin-top:10px">Une forêt indiquée n'est pas forcément ouverte au public : vérifiez avec le cadastre et respectez les propriétés privées.</p>
     `, "forest", null);
