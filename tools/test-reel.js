@@ -43,6 +43,15 @@ fs.mkdirSync(OUT, { recursive: true });
     console.log(`${name} : ${wfs.length - before} requêtes bois (${wfs.slice(before).join(", ")}), ${dots} parcelles avec pastilles, bandeau : ${await page.locator("#woods-hint").isVisible() ? await page.textContent("#woods-hint") : "(caché)"}`);
     await page.screenshot({ path: `${OUT}/${i}-bois.png` });
   }
+  // vue rapprochée : noms des champignons sur les parcelles
+  await page.click("#sheet-close").catch(() => {});
+  await page.locator(".leaflet-control-zoom-in").click();
+  await page.waitForTimeout(800);
+  await page.locator(".leaflet-control-zoom-in").click();
+  await page.waitForTimeout(4000);
+  console.log("Vue rapprochée :", await page.locator(".wood-label").count(), "étiquettes avec nom, exemple :",
+    (await page.locator(".wood-label").first().textContent().catch(() => "-")).trim());
+  await page.screenshot({ path: `${OUT}/6-noms.png` });
   // fiche d'un bois
   const dot = page.locator(".zone-dots.wood").first();
   if (await dot.count()) {

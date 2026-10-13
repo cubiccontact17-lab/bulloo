@@ -746,6 +746,11 @@
   // À partir du zoom 13, les bois visibles sont téléchargés par carrés de
   // 0,04° et coloriés avec le champignon le plus probable du jour.
   const WOODS_MIN_ZOOM = 13;
+  const SHORT_NAMES = {
+    cepe: "Cèpe", girolle: "Girolle", trompette: "Trompette", piedmouton: "Pied de mouton",
+    chanterelletube: "Chanterelle", lactaire: "Lactaire", coulemelle: "Coulemelle", rose: "Rosé",
+    piedbleu: "Pied bleu", pleurote: "Pleurote", morille: "Morille", mousseron: "Mousseron", cesar: "Oronge"
+  };
   const CELL = 0.04;
   const woodsRenderer = L.canvas({ padding: 0.3 });
   const woodsLayer = L.layerGroup();
@@ -892,8 +897,12 @@
           if (px > 10) {
             dots++;
             const n = px > 34 && z >= 14 ? 3 : px > 24 ? 2 : 1;
-            const html = `<div class="zone-dots compact wood">${scores.slice(0, n).map(x =>
-              `<i class="dot" style="width:${Math.round(7 + x.score / 14)}px;height:${Math.round(7 + x.score / 14)}px;background:${x.species.color}"></i>`).join("")}</div>`;
+            // de près, sur les grandes parcelles : nom du champignon et pourcentage
+            const html = z >= 15 && px > 70
+              ? `<div class="wood-label">${scores.slice(0, 2).map(x =>
+                  `<span><i class="dot" style="background:${x.species.color}"></i>${SHORT_NAMES[x.species.id] || x.species.name} ${x.score} %</span>`).join("")}</div>`
+              : `<div class="zone-dots compact wood">${scores.slice(0, n).map(x =>
+                  `<i class="dot" style="width:${Math.round(7 + x.score / 14)}px;height:${Math.round(7 + x.score / 14)}px;background:${x.species.color}"></i>`).join("")}</div>`;
             woodsLayer.addLayer(L.marker(center, {
               icon: L.divIcon({ className: "zone-icon", html, iconSize: [0, 0] }),
               interactive: true, bubblingMouseEvents: false
