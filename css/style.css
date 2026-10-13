@@ -479,3 +479,4 @@ label.btn { cursor: pointer; }
 .sp-head .name em { display: block; font-size: 11px; color: var(--muted); }
 .source { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
 .alert.expert { border: 2px solid currentColor; font-size: 14px; }
+.zone-dots.wood { background: rgba(255, 255, 255, .85); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }

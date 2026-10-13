@@ -1,6 +1,6 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v6";
+const VERSION = "champi-v7";
 const SHELL = [
   "./",
   "index.html",
@@ -21,6 +21,8 @@ const SHELL = [
 ];
 const TILE_CACHE = "champi-tiles";
 const PHOTO_CACHE = "champi-photos";
+const WOODS_CACHE = "champi-bois";
+const MAX_WOODS = 80;
 const MAX_TILES = 1500;
 
 // Données et algorithme partagés avec l'application (définit DATA_CACHE, computeAlerts…)
@@ -62,7 +64,7 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== TILE_CACHE && k !== PHOTO_CACHE && k !== DATA_CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== TILE_CACHE && k !== PHOTO_CACHE && k !== WOODS_CACHE && k !== DATA_CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -89,6 +91,20 @@ self.addEventListener("fetch", e => {
       if (res.ok || res.type === "opaque") cache.put(e.request, res.clone());
       return res;
     }));
+    return;
+  }
+
+  // Contours des bois (WFS) : réseau d'abord, copie gardée pour la forêt sans réseau
+  if (url.hostname === "data.geopf.fr" && url.pathname.startsWith("/wfs")) {
+    e.respondWith(fetch(e.request).then(async res => {
+      if (res.ok) {
+        const cache = await caches.open(WOODS_CACHE);
+        await cache.put(e.request, res.clone());
+        const keys = await cache.keys();
+        for (let i = 0; i < keys.length - MAX_WOODS; i++) await cache.delete(keys[i]);
+      }
+      return res;
+    }).catch(() => caches.match(e.request)));
     return;
   }
 

@@ -113,8 +113,7 @@
   // Le choix des fonds est mémorisé sur le téléphone
   const mapPrefs = storeGet(MAP_KEY) || {};
   (BASES[mapPrefs.base] || BASES["Plan IGN"]).addTo(map);
-  (mapPrefs.overlays || []).forEach(n => OVERLAYS[n] && OVERLAYS[n].addTo(map));
-  L.control.layers(BASES, OVERLAYS, { position: "topright" }).addTo(map);
+  const layersControl = L.control.layers(BASES, OVERLAYS, { position: "topright" }).addTo(map);
   const saveMapPrefs = () => storeSet(MAP_KEY, {
     base: Object.keys(BASES).find(k => map.hasLayer(BASES[k])),
     overlays: Object.keys(OVERLAYS).filter(k => map.hasLayer(OVERLAYS[k]))
@@ -144,9 +143,11 @@
   // Appui long (ou clic droit) sur la carte : ajouter un coin
   map.on("contextmenu", e => showCoinForm(null, { lat: e.latlng.lat, lon: e.latlng.lng }));
   let lastCompact = null;
+  let lastWoodsView = null;
   map.on("zoomend", () => {
     const compact = map.getZoom() < 10;
-    if (compact !== lastCompact && state.results.length) renderMap();
+    const woodsView = map.getZoom() >= 13;
+    if ((compact !== lastCompact || woodsView !== lastWoodsView) && state.results.length) renderMap();
   });
   let userMarker = null;
 
@@ -231,12 +232,17 @@
   }
 
   function renderMap() {
+    woodScoreCache.clear();
+    renderWoods();
     zoneLayer.clearLayers();
     lastCompact = map.getZoom() < 10;
+    lastWoodsView = map.getZoom() >= 13;
+    // en vue « bois par bois », le cercle du secteur est remplacé par les contours des bois
+    const hideCircles = lastWoodsView && map.hasLayer(woodsLayer);
     state.results.forEach(r => {
       const vis = visibleScores(r);
       const best = vis[0];
-      L.circle([r.zone.lat, r.zone.lon], {
+      if (!hideCircles) L.circle([r.zone.lat, r.zone.lon], {
         radius: r.zone.radius,
         color: best ? best.species.color : "#9e9e9e",
         weight: 1.5,
@@ -729,6 +735,138 @@
     $("#coin-edit").addEventListener("click", () => showCoinForm(id));
   }
 
+  // ---------- Champignons par bois (contours BD Forêt, WFS IGN) ----------
+  // À partir du zoom 13, les bois visibles sont téléchargés par carrés de
+  // 0,04° et coloriés avec le champignon le plus probable du jour.
+  const WOODS_MIN_ZOOM = 13;
+  const CELL = 0.04;
+  const woodsRenderer = L.canvas({ padding: 0.3 });
+  const woodsLayer = L.layerGroup();
+  const woodCells = new Map();     // clé de carré → { features } ou { loading: true }
+  const woodScoreCache = new Map(); // secteur|milieux|jour → scores
+  let woodsHintShown = false;
+
+  function woodScores(habitats, pos, onlyEnabled) {
+    if (!state.weather) return [];
+    const zi = nearestZoneIndex(pos);
+    const t = state.todayIdx + state.day;
+    const key = `${zi}|${habitats.slice().sort().join(",")}|${t}|${state.calib.total}`;
+    let scores = woodScoreCache.get(key);
+    if (!scores) {
+      const ids = speciesForHabitats(habitats).map(x => x.id);
+      const ws = weatherSummary(state.weather[zi], t);
+      scores = scorePlace({ habitats }, ws, monthOf(state.weather, t), "point", state.calib, ids);
+      woodScoreCache.set(key, scores);
+    }
+    return onlyEnabled ? scores.filter(x => state.enabled.has(x.species.id)) : scores;
+  }
+
+  function woodsUrl(lat0, lon0) {
+    const bb = [lon0, lat0, lon0 + CELL, lat0 + CELL].map(v => v.toFixed(4)).join(",");
+    return "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature" +
+      "&TYPENAMES=LANDCOVER.FORESTINVENTORY.V2:formation_vegetale&SRSNAME=EPSG:4326" +
+      `&BBOX=${bb},EPSG:4326&COUNT=2000&OUTPUTFORMAT=application/json`;
+  }
+
+  function visibleCells() {
+    const b = map.getBounds();
+    const cells = [];
+    for (let la = Math.floor(b.getSouth() / CELL) * CELL; la < b.getNorth(); la += CELL)
+      for (let lo = Math.floor(b.getWest() / CELL) * CELL; lo < b.getEast(); lo += CELL)
+        cells.push({ key: `${la.toFixed(2)},${lo.toFixed(2)}`, lat: la, lon: lo });
+    return cells;
+  }
+
+  async function loadWoodCell(c) {
+    woodCells.set(c.key, { loading: true });
+    try {
+      const res = await fetch(woodsUrl(c.lat, c.lon));
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const j = await res.json();
+      woodCells.set(c.key, { features: j.features || [], at: Date.now() });
+      // on garde en mémoire les 60 derniers carrés
+      if (woodCells.size > 60) woodCells.delete(woodCells.keys().next().value);
+    } catch (e) {
+      woodCells.delete(c.key);
+      toast("Contours des bois indisponibles pour l'instant", 3000);
+    }
+    renderWoods();
+  }
+
+  function updateWoods() {
+    if (!map.hasLayer(woodsLayer)) return;
+    if (map.getZoom() < WOODS_MIN_ZOOM) {
+      woodsLayer.clearLayers();
+      return;
+    }
+    const cells = visibleCells();
+    if (cells.length > 16) return; // vue trop grande (écran très large)
+    cells.filter(c => !woodCells.has(c.key)).forEach(loadWoodCell);
+    renderWoods();
+  }
+
+  function renderWoods() {
+    woodsLayer.clearLayers();
+    if (!map.hasLayer(woodsLayer) || map.getZoom() < WOODS_MIN_ZOOM) return;
+    const seen = new Set();
+    const showDots = map.getZoom() >= 14;
+    let dots = 0;
+    visibleCells().forEach(c => {
+      const cell = woodCells.get(c.key);
+      if (!cell || !cell.features) return;
+      cell.features.forEach(f => {
+        const id = f.properties.id || f.id;
+        if (seen.has(id)) return;
+        seen.add(id);
+        const habitats = habitatsFromForest(f.properties);
+        const geo = L.geoJSON(f, { renderer: woodsRenderer });
+        const center = geo.getBounds().getCenter();
+        const pos = { lat: center.lat, lon: center.lng };
+        const scores = woodScores(habitats, pos, true).filter(x => x.score >= MIN_SHOWN);
+        const best = scores[0];
+        geo.setStyle({
+          renderer: woodsRenderer,
+          color: best ? "#3d2b1f" : "#7d8b6a",
+          weight: best ? 1.2 : 0.8,
+          opacity: best ? 0.7 : 0.4,
+          fillColor: best ? best.species.color : "#7d8b6a",
+          fillOpacity: best ? 0.15 + 0.45 * best.score / 100 : 0.06
+        });
+        geo.eachLayer(l => { l.options.bubblingMouseEvents = false; });
+        geo.on("click", () => renderForestSheet(f.properties, pos));
+        woodsLayer.addLayer(geo);
+        // pastilles des 3 champignons les plus probables sur les bois assez grands
+        if (showDots && best && dots < 300) {
+          const bb = geo.getBounds();
+          const px = map.latLngToContainerPoint(bb.getNorthEast()).x - map.latLngToContainerPoint(bb.getSouthWest()).x;
+          if (px > 45) {
+            dots++;
+            const html = `<div class="zone-dots compact wood">${scores.slice(0, 3).map(x =>
+              `<i class="dot" style="width:${Math.round(7 + x.score / 14)}px;height:${Math.round(7 + x.score / 14)}px;background:${x.species.color}"></i>`).join("")}</div>`;
+            woodsLayer.addLayer(L.marker(center, {
+              icon: L.divIcon({ className: "zone-icon", html, iconSize: [0, 0] }),
+              interactive: true, bubblingMouseEvents: false
+            }).on("click", () => renderForestSheet(f.properties, pos)));
+          }
+        }
+      });
+    });
+  }
+
+  OVERLAYS["Champignons par bois"] = woodsLayer;
+  layersControl.addOverlay(woodsLayer, "Champignons par bois");
+  // « Champignons par bois » est actif par défaut
+  (mapPrefs.overlays || ["Champignons par bois"]).forEach(n => OVERLAYS[n] && OVERLAYS[n].addTo(map));
+
+  map.on("moveend", updateWoods);
+  map.on("overlayadd", e => { if (e.layer === woodsLayer) updateWoods(); });
+  map.on("zoomend", () => {
+    if (map.hasLayer(woodsLayer) && map.getZoom() < WOODS_MIN_ZOOM && map.getZoom() >= 11 && !woodsHintShown) {
+      woodsHintShown = true;
+      toast("Zoomez encore pour voir les champignons bois par bois", 3500);
+    }
+  });
+
   // ---------- Carte forestière : que pousse-t-il ici ? ----------
   async function showForestPoint(latlng) {
     const z = 16;
@@ -756,14 +894,16 @@
         <p>Touchez une zone colorée de la carte forestière.</p>`, "forest", null);
       return;
     }
+    renderForestSheet(props, pos);
+  }
+
+  // Fiche d'un bois : type de forêt, champignons possibles et chances du jour
+  function renderForestSheet(props, pos) {
     const habitats = habitatsFromForest(props);
     const list = speciesForHabitats(habitats);
     let rows = "";
     if (state.weather) {
-      const zi = nearestZoneIndex(pos);
-      const t = state.todayIdx + state.day;
-      const ws = weatherSummary(state.weather[zi], t);
-      const scores = scorePlace({ habitats }, ws, monthOf(state.weather, t), "point", state.calib, list.map(x => x.id));
+      const scores = woodScores(habitats, pos, null);
       rows = scores.map(s => `<li data-fiche="${s.species.id}">
           <span class="swatch" style="background:${s.species.color}"></span>
           <span class="txt"><b>${s.species.name}</b><span>${s.factors.season === 0 ? "Hors saison" : "Voir la fiche"}</span></span>
@@ -1088,6 +1228,7 @@
       <p><b>Apprentissage</b> : quand vous notez une sortie (trouvé / rien trouvé), l'appli compare avec ce qu'elle avait prévu et ajuste ses scores pour chaque espèce et chaque lieu. Plus vous notez de sorties, plus elle colle à votre terrain.</p>
       <h3>Légende</h3>
       <p><span class="lvl lvl-5">Excellent</span> ≥ 80 % · <span class="lvl lvl-4">Bon</span> ≥ 60 % · <span class="lvl lvl-3">Moyen</span> ≥ 35 % · <span class="lvl lvl-2">Faible</span> ≥ 15 %</p>
+      <p><b>Bois par bois</b> : en zoomant (à partir de l'échelle d'un village), chaque bois est colorié avec le champignon le plus probable du jour, d'après la carte forestière de l'IGN (chênes, châtaigniers, pins…). Touchez un bois pour voir tous ses champignons.</p>
       <p>Sur la carte, chaque secteur affiche une pastille par espèce probable (plus elle est grosse, plus la probabilité est forte). Touchez un secteur pour le détail. Touchez un champignon en bas de l'écran pour ouvrir sa fiche (photo, milieu, saison) et choisir de l'afficher ou non sur la carte.</p>
       <h3>Bonnes pratiques</h3>
       <ul class="plain">

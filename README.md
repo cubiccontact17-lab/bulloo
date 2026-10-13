@@ -33,6 +33,7 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 
 - Fonds **IGN** (Géoplateforme, gratuits, zoom 19) : Plan IGN et photos aériennes. OpenStreetMap et OpenTopoMap restent disponibles.
 - Couche **Essences forestières** (BD Forêt V2) : un appui sur une forêt interroge l'IGN (GetFeatureInfo) pour obtenir le type de peuplement (chênes, châtaigniers, pins…). L'appli en déduit les champignons possibles et propose d'enregistrer l'endroit comme coin.
+- **Champignons par bois** (actif par défaut, à partir du zoom 13) : les contours des bois sont téléchargés depuis l'IGN (WFS BD Forêt V2, par carrés de 0,04°) et coloriés avec le champignon le plus probable du jour. Les grands bois portent aussi les pastilles des 3 champignons les plus probables. Un appui ouvre la fiche du bois. Les contours déjà vus restent disponibles sans réseau (cache du service worker).
 - Couche **Cadastre** (parcelles, à partir du zoom 14), pour repérer les propriétés.
 - `tools/verifier-cartes.sh` (workflow « Vérifier les fonds de carte IGN ») contrôle que ces services répondent.
 
