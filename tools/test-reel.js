@@ -15,7 +15,11 @@ fs.mkdirSync(OUT, { recursive: true });
   page.on("response", async r => {
     if (r.url().includes("/wfs")) wfs.push(`${r.status()} ${(await r.body().catch(() => "")).length} octets`);
   });
-  page.on("requestfailed", r => errors.push("échec réseau : " + r.url().slice(0, 90) + " " + (r.failure() || {}).errorText));
+  page.on("requestfailed", r => {
+    if (r.url().includes("/wmts")) return; // tuiles annulées pendant les déplacements : normal
+    errors.push("échec réseau : " + r.url() + " " + (r.failure() || {}).errorText);
+  });
+  page.on("response", r => { if (r.status() >= 400) errors.push(`HTTP ${r.status()} : ${r.url()}`); });
 
   await page.goto("http://localhost:8080/");
   await page.waitForFunction(() => !/Chargement/.test(document.querySelector("#subtitle").textContent), null, { timeout: 30000 });

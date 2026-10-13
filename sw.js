@@ -1,6 +1,6 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v7";
+const VERSION = "champi-v8";
 const SHELL = [
   "./",
   "index.html",
@@ -94,17 +94,30 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // Contours des bois (WFS) : réseau d'abord, copie gardée pour la forêt sans réseau
+  // Contours des bois (WFS) : réseau d'abord, copie gardée pour la forêt sans réseau.
+  // La mise en cache ne doit jamais faire échouer la requête.
   if (url.hostname === "data.geopf.fr" && url.pathname.startsWith("/wfs")) {
-    e.respondWith(fetch(e.request).then(async res => {
-      if (res.ok) {
-        const cache = await caches.open(WOODS_CACHE);
-        await cache.put(e.request, res.clone());
-        const keys = await cache.keys();
-        for (let i = 0; i < keys.length - MAX_WOODS; i++) await cache.delete(keys[i]);
+    e.respondWith((async () => {
+      try {
+        const res = await fetch(e.request);
+        if (res.ok) {
+          const copy = res.clone();
+          e.waitUntil((async () => {
+            try {
+              const cache = await caches.open(WOODS_CACHE);
+              await cache.put(e.request, copy);
+              const keys = await cache.keys();
+              for (let i = 0; i < keys.length - MAX_WOODS; i++) await cache.delete(keys[i]);
+            } catch (err) { /* cache plein ou indisponible : sans importance */ }
+          })());
+        }
+        return res;
+      } catch (err) {
+        const hit = await caches.match(e.request);
+        if (hit) return hit;
+        throw err;
       }
-      return res;
-    }).catch(() => caches.match(e.request)));
+    })());
     return;
   }
 

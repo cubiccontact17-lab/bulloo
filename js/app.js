@@ -800,19 +800,43 @@
     return cells;
   }
 
-  async function loadWoodCell(c) {
+  // File d'attente : 2 téléchargements à la fois, 3 essais par carré
+  const woodQueue = [];
+  let woodActive = 0;
+
+  function loadWoodCell(c) {
     woodCells.set(c.key, { loading: true });
-    try {
-      const res = await fetch(woodsUrl(c.lat, c.lon));
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const j = await res.json();
-      woodCells.set(c.key, { features: j.features || [], at: Date.now() });
-      // on garde en mémoire les 60 derniers carrés
-      if (woodCells.size > 60) woodCells.delete(woodCells.keys().next().value);
-    } catch (e) {
-      woodCells.delete(c.key);
-      woodsError = true;
+    woodQueue.push(c);
+    pumpWoodQueue();
+  }
+
+  function pumpWoodQueue() {
+    while (woodActive < 2 && woodQueue.length) {
+      const c = woodQueue.shift();
+      woodActive++;
+      fetchWoodCell(c).finally(() => { woodActive--; pumpWoodQueue(); });
     }
+  }
+
+  async function fetchWoodCell(c) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(woodsUrl(c.lat, c.lon));
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const j = await res.json();
+        woodCells.set(c.key, { features: j.features || [], at: Date.now() });
+        // on garde en mémoire les 60 derniers carrés
+        if (woodCells.size > 60) woodCells.delete(woodCells.keys().next().value);
+        woodsError = false;
+        renderWoods();
+        updateWoodsHint();
+        return;
+      } catch (e) {
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1500 * attempt));
+      }
+    }
+    woodCells.delete(c.key);
+    woodsError = true;
     renderWoods();
     updateWoodsHint();
   }
