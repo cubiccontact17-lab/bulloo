@@ -1,0 +1,14 @@
+name: Vérifier les fonds de carte IGN
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cartes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tools/verifier-cartes.sh
