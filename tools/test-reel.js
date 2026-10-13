@@ -29,7 +29,7 @@ fs.mkdirSync(OUT, { recursive: true });
     await page.evaluate(() => { const s = document.querySelector("#sheet"); if (s) s.hidden = true; const b = document.querySelector("#sheet-backdrop"); if (b) b.hidden = true; });
     const marker = page.locator(`.leaflet-marker-icon[title="${name}"]`);
     if (!(await marker.count())) { console.log(name, ": marqueur introuvable"); continue; }
-    await marker.first().click({ force: true });
+    await marker.first().evaluate(el => el.click());
     await page.waitForSelector("#zone-woods", { timeout: 5000 });
     console.log(name, "· météo :", (await page.textContent(".source").catch(() => "?")).trim());
     await page.click("#zone-woods");
@@ -42,7 +42,7 @@ fs.mkdirSync(OUT, { recursive: true });
   // fiche d'un bois
   const dot = page.locator(".zone-dots.wood").first();
   if (await dot.count()) {
-    await dot.click({ force: true });
+    await dot.evaluate(el => el.closest(".leaflet-marker-icon").click());
     await page.waitForTimeout(800);
     await page.screenshot({ path: `${OUT}/5-fiche-bois.png` });
     console.log("Fiche bois :", (await page.textContent("#sheet-content")).replace(/\s+/g, " ").slice(0, 200));
