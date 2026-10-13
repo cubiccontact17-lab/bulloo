@@ -18,4 +18,16 @@ done
 curl -sS "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0" | tr '\n' ' ' \
   | grep -o '<Layer>[^§]*' | sed 's#</Layer>#</Layer>\n#g' | grep 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS<' \
   | grep -o '<Style[^>]*>.\{0,300\}' | grep -o '<ows:Identifier>[^<]*' | head -5
+# Interrogation de la carte forestière en un point (GetFeatureInfo)
+for P in "46.523 -0.766" "46.840 -2.135" "45.715 -1.195" "46.200 -0.820"; do
+  read -r LAT LON <<< "$P"
+  read -r X Y I J <<< "$(python3 -c "
+import math;z=16;n=2**z;lat=math.radians($LAT)
+fx=($LON+180)/360*n;fy=(1-math.log(math.tan(lat)+1/math.cos(lat))/math.pi)/2*n
+print(int(fx),int(fy),int((fx%1)*256),int((fy%1)*256))")"
+  U="https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetFeatureInfo&VERSION=1.0.0&LAYER=LANDCOVER.FORESTINVENTORY.V2&STYLE=normal&FORMAT=image/png&INFOFORMAT=application/json&TILEMATRIXSET=PM&TILEMATRIX=16&TILEROW=$Y&TILECOL=$X&I=$I&J=$J"
+  echo "Point $LAT,$LON :"
+  curl -sS -D /tmp/h "$U" | head -c 1200; echo
+  grep -i 'access-control-allow-origin' /tmp/h || echo "(pas d'en-tête CORS)"
+done
 exit 0
