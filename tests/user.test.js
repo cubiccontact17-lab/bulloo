@@ -131,3 +131,49 @@ test("carte forestière : essences traduites en milieux", () => {
   const ids = user.speciesForHabitats(["pins"]).map(s => s.id);
   assert.ok(ids.includes("lactaire") && !ids.includes("rose"));
 });
+
+// ----- chargement de la météo (site, puis Open-Meteo en direct) -----
+function fakeDaily(n) {
+  const w = fakeWeather()[0];
+  return Array.from({ length: n }, () => ({ daily: {
+    time: w.time, temperature_2m_max: w.tmax, temperature_2m_min: w.tmin,
+    precipitation_sum: w.precip, relative_humidity_2m_mean: w.rh } }));
+}
+async function withFetch(handler, fn) {
+  const old = global.fetch;
+  global.fetch = async url => handler(String(url));
+  try { return await fn(); } finally { global.fetch = old; }
+}
+const okJson = body => ({ ok: true, status: 200, json: async () => body });
+
+test("météo : les secteurs viennent du fichier du site, les coins en direct", async () => {
+  const site = { at: new Date().toISOString(), source: "meteofrance", zones: fakeWeather() };
+  const calls = [];
+  const w = await withFetch(url => {
+    calls.push(url);
+    if (url.startsWith("data/meteo.json")) return okJson(site);
+    return okJson(fakeDaily((url.match(/latitude=([^&]*)/)[1].split(",")).length));
+  }, () => user.fetchWeather([coin]));
+  assert.strictEqual(w.zones.length, data.ZONES.length);
+  assert.ok(w.coinWeather.c1);
+  const live = calls.filter(u => u.includes("open-meteo"));
+  assert.strictEqual(live.length, 1);
+  assert.ok(!live[0].includes(data.ZONES[0].lat.toFixed(4)), "les secteurs ne sont pas redemandés");
+});
+
+test("météo : fichier du site absent → tout en direct", async () => {
+  const w = await withFetch(url => url.startsWith("data/")
+    ? { ok: false, status: 404 }
+    : okJson(fakeDaily((url.match(/latitude=([^&]*)/)[1].split(",")).length)), () => user.fetchWeather([coin]));
+  assert.strictEqual(w.zones.length, data.ZONES.length);
+  assert.ok(w.coinWeather.c1);
+});
+
+test("météo : limite atteinte (429) → message clair, sans insister", async () => {
+  let n = 0;
+  const err = await withFetch(url => { if (url.includes("open-meteo")) n++; return { ok: false, status: url.startsWith("data/") ? 404 : 429 }; },
+    () => user.fetchWeather([]).then(() => null, e => e));
+  assert.strictEqual(err.status, 429);
+  assert.strictEqual(n, 1);
+  assert.match(user.weatherErrorText(err), /saturé/);
+});

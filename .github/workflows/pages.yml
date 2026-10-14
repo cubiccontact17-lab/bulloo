@@ -4,6 +4,8 @@ on:
   push:
     branches: [main, master, claude/mushroom-location-vendee-app-pskyx7]
   workflow_dispatch:
+  schedule:
+    - cron: "7 */3 * * *"   # toutes les 3 heures : météo des secteurs mise à jour
 
 permissions:
   contents: read
@@ -32,6 +34,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Préparer la météo des secteurs
+        run: node tools/build-meteo.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,6 +1,6 @@
 // Service worker : application utilisable hors connexion
 // (avec la dernière météo connue et les tuiles de carte déjà vues).
-const VERSION = "champi-v9";
+const VERSION = "champi-v10";
 const SHELL = [
   "./",
   "index.html",
@@ -136,10 +136,10 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // Application : réseau d'abord, cache en secours
+  // Application : réseau d'abord (en revalidant, pour ne jamais mélanger deux versions), cache en secours
   if (url.origin === self.location.origin) {
     e.respondWith(
-      fetch(e.request)
+      (e.request.mode === "navigate" ? fetch(e.request) : fetch(url.href, { cache: "no-cache", credentials: "same-origin" }))
         .then(res => {
           if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); }
           return res;

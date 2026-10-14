@@ -166,28 +166,35 @@
     if (!force) toast("Chargement de la météo…");
     try {
       const w = await fetchWeather(state.coins);
-      const entry = { at: Date.now(), zones: ZONES.length, coins: coinSignature(),
+      const entry = { at: Date.now(), dataAt: w.dataAt, zones: ZONES.length, coins: coinSignature(),
         data: w.zones, coinWeather: w.coinWeather, source: w.source };
       storeSet(CACHE_KEY, entry);
       hideToast();
       useWeather(entry, entry.at);
     } catch (err) {
+      const why = weatherErrorText(err);
       if (usable) {
-        toast("Hors ligne : météo du " + fmtDateTime(cached.at), 4000);
+        toast(`Météo non mise à jour (${why}) : données du ${fmtDateTime(cached.at)}`, 5000);
         useWeather(cached, cached.at);
       } else {
-        toast("Impossible de charger la météo. Vérifiez votre connexion.", 6000);
-        $("#subtitle").textContent = "Météo indisponible";
+        toast(`Météo indisponible : ${why}. Touchez le titre pour réessayer.`, 8000);
+        $("#subtitle").textContent = "Météo indisponible · toucher pour réessayer";
+        weatherFailed = true;
       }
     }
   }
+
+  let weatherFailed = false;
+  $(".brand").addEventListener("click", () => {
+    if (weatherFailed || !state.weather) { weatherFailed = false; $("#subtitle").textContent = "Chargement de la météo…"; loadWeather(true); }
+  });
 
   function useWeather(entry, at) {
     const data = entry.data;
     state.weather = data;
     state.coinWeather = entry.coinWeather || {};
     state.weatherSource = entry.source || "auto";
-    state.fetchedAt = at;
+    state.fetchedAt = entry.dataAt || at;
     state.todayIdx = todayIndex(data);
     const maxDay = data[0].time.length - 1 - state.todayIdx;
     if (state.day > maxDay) state.day = maxDay;

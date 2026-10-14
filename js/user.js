@@ -49,25 +49,74 @@ function parseWeather(json) {
   });
 }
 
-// Télécharge la météo des secteurs et de chaque coin (au point exact).
-// Retourne { zones, coinWeather: {idCoin: météo}, source }
-async function fetchWeather(coins) {
-  const list = (coins || []).filter(c => typeof c.lat === "number" && typeof c.lon === "number");
-  const points = [...ZONES, ...list];
+// Demande en direct à Open-Meteo pour une liste de points.
+// Essaie Météo-France + modèle par défaut, puis le modèle par défaut seul.
+async function fetchPoints(points) {
   let lastErr = null;
   for (const models of [`${MF_MODEL},best_match`, null]) {
     try {
       const res = await fetch(weatherUrl(points, models));
-      if (!res.ok) throw new Error("HTTP " + res.status);
+      if (!res.ok) {
+        const err = new Error("HTTP " + res.status);
+        err.status = res.status;
+        throw err;
+      }
       const data = parseWeather(await res.json());
       if (data.length !== points.length) throw new Error("réponse incomplète");
-      const coinWeather = {};
-      list.forEach((c, i) => { coinWeather[c.id] = data[ZONES.length + i]; });
-      const source = data[0].mfDays > 0 ? "meteofrance" : "auto";
-      return { zones: data.slice(0, ZONES.length), coinWeather, source };
-    } catch (e) { lastErr = e; }
+      return { data, source: data[0].mfDays > 0 ? "meteofrance" : "auto" };
+    } catch (e) {
+      lastErr = e;
+      if (e.status === 429) break; // limite atteinte : inutile d'insister
+    }
   }
   throw lastErr || new Error("météo indisponible");
+}
+
+// Météo des secteurs préparée par le site toutes les 3 heures (data/meteo.json) :
+// pas de limite de demandes, fonctionne sur tous les réseaux.
+const SITE_WEATHER_MAX_AGE = 8 * 3600 * 1000;
+async function fetchSiteWeather() {
+  const res = await fetch("data/meteo.json", { cache: "no-cache" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const j = await res.json();
+  if (!j.zones || j.zones.length !== ZONES.length) throw new Error("secteurs différents");
+  if (Date.now() - Date.parse(j.at) > SITE_WEATHER_MAX_AGE) throw new Error("trop ancienne");
+  if (!j.zones[0].time.includes(todayStr())) throw new Error("date dépassée");
+  return j;
+}
+
+// Météo des secteurs et de chaque coin (au point exact).
+// Retourne { zones, coinWeather: {idCoin: météo}, source, dataAt }
+async function fetchWeather(coins) {
+  const list = (coins || []).filter(c => typeof c.lat === "number" && typeof c.lon === "number");
+  let site = null;
+  try { site = await fetchSiteWeather(); } catch (e) { /* on passe à la demande directe */ }
+
+  if (site) {
+    const coinWeather = {};
+    if (list.length) {
+      try {
+        const r = await fetchPoints(list);
+        // mêmes dates que les secteurs, sinon on garde la météo du secteur le plus proche
+        if (r.data[0].time[0] === site.zones[0].time[0]) list.forEach((c, i) => { coinWeather[c.id] = r.data[i]; });
+      } catch (e) { /* les coins prendront la météo du secteur le plus proche */ }
+    }
+    return { zones: site.zones, coinWeather, source: site.source, dataAt: Date.parse(site.at) };
+  }
+
+  const r = await fetchPoints([...ZONES, ...list]);
+  const coinWeather = {};
+  list.forEach((c, i) => { coinWeather[c.id] = r.data[ZONES.length + i]; });
+  return { zones: r.data.slice(0, ZONES.length), coinWeather, source: r.source, dataAt: Date.now() };
+}
+
+// Explication lisible d'un échec de chargement
+function weatherErrorText(err) {
+  if (!err) return "erreur inconnue";
+  if (err.status === 429) return "service météo saturé (trop de demandes depuis votre réseau)";
+  if (err.status) return `le service météo a répondu ${err.status}`;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return "pas de connexion internet";
+  return "service météo injoignable";
 }
 
 // Date du jour en France (YYYY-MM-DD)
@@ -289,6 +338,6 @@ async function notifyNew(registration, alerts) {
 if (typeof module !== "undefined") {
   module.exports = {
     fitCalibration, calibrateScore, computeAlerts, coinAsZone, nearestZoneIndex,
-    evaluateCoin, evaluateZone, parseWeather, weatherUrl, fetchWeather, todayStr, habitatsFromForest, speciesForHabitats, placeKey, DEFAULT_ALERTS
+    evaluateCoin, evaluateZone, parseWeather, weatherUrl, fetchWeather, fetchPoints, weatherErrorText, todayStr, habitatsFromForest, speciesForHabitats, placeKey, DEFAULT_ALERTS
   };
 }
