@@ -3,6 +3,7 @@
 const { chromium, devices } = require("playwright");
 const fs = require("fs");
 const OUT = process.argv[2] || "captures";
+const URL_APP = process.argv[3] || "http://localhost:8080/";
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {
@@ -21,8 +22,13 @@ fs.mkdirSync(OUT, { recursive: true });
   });
   page.on("response", r => { if (r.status() >= 400) errors.push(`HTTP ${r.status()} : ${r.url()}`); });
 
-  await page.goto("http://localhost:8080/");
-  await page.waitForFunction(() => !/Chargement/.test(document.querySelector("#subtitle").textContent), null, { timeout: 30000 });
+  page.on("response", async r => {
+    if (r.url().includes("open-meteo")) console.log("Météo :", r.status(), r.url().slice(0, 120), r.status() >= 400 ? (await r.text().catch(() => "")).slice(0, 300) : "");
+  });
+  await page.goto(URL_APP);
+  await page.waitForFunction(() => !/Chargement/.test(document.querySelector("#subtitle").textContent), null, { timeout: 30000 })
+    .catch(() => console.log("La météo n'a pas fini de charger en 30 s"));
+  console.log("Message affiché :", await page.locator("#toast").isVisible() ? await page.textContent("#toast") : "(aucun)");
   console.log("Sous-titre :", await page.textContent("#subtitle"));
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${OUT}/1-accueil.png` });

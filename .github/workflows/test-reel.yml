@@ -2,6 +2,11 @@ name: Tester l'appli en conditions réelles
 
 on:
   workflow_dispatch:
+    inputs:
+      url:
+        description: "Adresse à tester (vide = copie locale du dépôt)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -15,7 +20,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-save playwright@1.56.1 && npx playwright install --with-deps chromium
-      - run: (python3 -m http.server 8080 >/dev/null 2>&1 &) && sleep 1 && node tools/test-reel.js /tmp/captures
+      - run: (python3 -m http.server 8080 >/dev/null 2>&1 &) && sleep 1 && node tools/test-reel.js /tmp/captures "${{ github.event.inputs.url || 'http://localhost:8080/' }}"
       - name: Publier les captures sur la branche ci-captures
         if: always()
         run: |
