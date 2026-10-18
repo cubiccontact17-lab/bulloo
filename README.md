@@ -6,7 +6,7 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 
 - Carte limitée à la Vendée et à la Charente-Maritime (contours des départements, reste grisé).
 - 38 secteurs. **Vendée** (24) : forêts de Mervent-Vouvant, Aizenay, La Chaize, Grasla, Pays-de-Monts, Olonne, Longeville, Jard, La Tranche, Noirmoutier, Haut-Bocage, vallées, bocages et prairies des marais. **Charente-Maritime** (14) : forêts de la Coubre, Saint-Trojan et Saumonards (Oléron), Île de Ré, Suzac, Benon, Aulnay, Double saintongeaise (Montendre, Montguyon), Haute-Saintonge, vallées de la Charente et de la Boutonne, marais de Brouage et de Marans.
-- 13 champignons **comestibles uniquement**, chacun avec **sa couleur** :
+- 14 champignons **comestibles uniquement**, chacun avec **sa couleur** :
 
 | Couleur | Champignon | Milieu |
 |---|---|---|
@@ -22,6 +22,7 @@ Application pour téléphone (web app installable) qui indique les **coins à ch
 | 🔵 `#4f86c6` | Pleurote en huître | bois mort |
 | 🔴 `#c1121f` | Morille | haies, lisières (printemps) |
 | ⚪ `#8d99ae` | Mousseron de la Saint-Georges | prairies, haies (printemps) |
+| 🟥 `#a44a3f` | Bolet orangé | peupliers, trembles, chênes (toujours bien cuit) |
 | 🟢 `#c6d81e` | Amanite des Césars | chênes, châtaigniers (rare, cueilleurs expérimentés, score plafonné) |
 
 - Sélecteur de jour : aujourd'hui + 7 jours de prévision.

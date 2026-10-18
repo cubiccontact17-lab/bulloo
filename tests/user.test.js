@@ -124,7 +124,7 @@ test("carte forestière : essences traduites en milieux", () => {
   assert.deepStrictEqual(h({ tfv: "Forêt fermée de pin maritime pur", essence: "Pin maritime" }), ["pins"]);
   assert.deepStrictEqual(h({ tfv: "Forêt fermée de châtaignier pur" }), ["chataigniers", "feuillus"]);
   assert.deepStrictEqual(h({ tfv: "Forêt fermée à mélange de feuillus prépondérants et conifères" }), ["feuillus", "pins"]);
-  assert.deepStrictEqual(h({ tfv: "Peupleraie", essence: "Peuplier" }), ["boismort", "lisiere"]);
+  assert.deepStrictEqual(h({ tfv: "Peupleraie", essence: "Peuplier" }), ["boismort", "lisiere", "peupliers"]);
   const peup = user.speciesForHabitats(["boismort", "lisiere"]).map(s => s.id);
   assert.ok(peup.includes("pleurote") && !peup.includes("cepe") && !peup.includes("girolle"));
   assert.deepStrictEqual(h({ tfv: "Forêt fermée sans couvert arboré", essence: "NR" }), ["lisiere"]);
@@ -176,4 +176,14 @@ test("météo : limite atteinte (429) → message clair, sans insister", async (
   assert.strictEqual(err.status, 429);
   assert.strictEqual(n, 1);
   assert.match(user.weatherErrorText(err), /saturé/);
+});
+
+test("bolet orangé : proposé dans les peupleraies et sous les chênes, pas dans les pinèdes", () => {
+  const peup = user.speciesForHabitats(user.habitatsFromForest({ tfv: "Peupleraie", essence: "Peuplier" })).map(s => s.id);
+  assert.ok(peup.includes("boletorange"));
+  const chene = user.speciesForHabitats(user.habitatsFromForest({ tfv: "Forêt fermée de chênes décidus purs" })).map(s => s.id);
+  assert.ok(chene.includes("boletorange"));
+  const pins = user.speciesForHabitats(user.habitatsFromForest({ tfv: "Forêt fermée de pin maritime pur" })).map(s => s.id);
+  assert.ok(!pins.includes("boletorange"));
+  assert.ok(data.FICHES.boletorange && /BIEN CUIT|bien cuit/.test(data.FICHES.boletorange.cuisine));
 });

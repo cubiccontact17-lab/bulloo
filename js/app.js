@@ -36,15 +36,28 @@
     try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* stockage indisponible */ }
   }
 
+  // Les champignons ajoutés dans une mise à jour s'affichent d'office,
+  // même si la liste des champignons affichés a été mémorisée avant.
+  const LATER_SPECIES = ["cesar", "boletorange"]; // ajoutés après la première version
   const prefs = storeGet(PREFS_KEY);
   if (prefs && Array.isArray(prefs.enabled)) {
+    const known = new Set(prefs.known || SPECIES.map(s => s.id).filter(id => !LATER_SPECIES.includes(id)));
     state.enabled = new Set(prefs.enabled.filter(id => speciesById[id]));
+    SPECIES.forEach(s => { if (!known.has(s.id)) state.enabled.add(s.id); });
   }
-  function savePrefs() { storeSet(PREFS_KEY, { enabled: [...state.enabled] }); }
+  function savePrefs() { storeSet(PREFS_KEY, { enabled: [...state.enabled], known: SPECIES.map(s => s.id) }); }
+  savePrefs();
 
   state.coins = storeGet(COINS_KEY) || [];
   state.observations = storeGet(OBS_KEY) || [];
   state.alertSettings = Object.assign({}, DEFAULT_ALERTS, storeGet(ALERTS_KEY) || {});
+  // nouveaux champignons ajoutés aux alertes aussi
+  {
+    const a = state.alertSettings;
+    const knownA = new Set(a.known || SPECIES.map(s => s.id).filter(id => !LATER_SPECIES.includes(id)));
+    SPECIES.forEach(s => { if (!knownA.has(s.id) && !a.species.includes(s.id)) a.species.push(s.id); });
+    a.known = SPECIES.map(s => s.id);
+  }
   state.calib = fitCalibration(state.observations);
 
   // Les données sont aussi copiées dans le cache pour le service worker
@@ -773,7 +786,8 @@
   const SHORT_NAMES = {
     cepe: "Cèpe", girolle: "Girolle", trompette: "Trompette", piedmouton: "Pied de mouton",
     chanterelletube: "Chanterelle", lactaire: "Lactaire", coulemelle: "Coulemelle", rose: "Rosé",
-    piedbleu: "Pied bleu", pleurote: "Pleurote", morille: "Morille", mousseron: "Mousseron", cesar: "Oronge"
+    piedbleu: "Pied bleu", pleurote: "Pleurote", morille: "Morille", mousseron: "Mousseron", cesar: "Oronge",
+    boletorange: "Bolet orangé"
   };
   const CELL = 0.04;
   const woodsRenderer = L.canvas({ padding: 0.3 });
@@ -1330,7 +1344,7 @@
   const HABITAT_LABELS = {
     feuillus: "Feuillus", chenes: "Chênes", chataigniers: "Châtaigniers", hetres: "Hêtres",
     pins: "Pins", dunes: "Dunes", prairies: "Prairies", haies: "Haies",
-    lisiere: "Lisières", boismort: "Bois mort"
+    lisiere: "Lisières", boismort: "Bois mort", peupliers: "Peupliers"
   };
 
   // ---------- Géolocalisation ----------

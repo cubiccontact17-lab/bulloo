@@ -1,7 +1,7 @@
 // Données : espèces comestibles et secteurs de cueillette en Vendée et Charente-Maritime.
 //
 // Habitats utilisés :
-//   feuillus, chenes, chataigniers, hetres, pins, dunes,
+//   feuillus, chenes, chataigniers, hetres, pins, dunes, peupliers,
 //   prairies, haies, lisiere, boismort
 //
 // Pour chaque espèce :
@@ -156,6 +156,18 @@ const SPECIES = [
     lookalikes: "Entolome livide (toxique) et inocybe de Patouillard (MORTEL). Vérifier l'odeur de farine et les lames blanches serrées."
   },
   {
+    id: "boletorange",
+    name: "Bolet orangé",
+    latin: "Leccinum aurantiacum",
+    color: "#a44a3f",
+    habitats: ["peupliers", "chenes", "feuillus"],
+    season: { 6: 0.3, 7: 0.6, 8: 0.9, 9: 1, 10: 0.8, 11: 0.3 },
+    temp: [10, 14, 21, 26],
+    rainMin: 30,
+    tips: "Sous les peupliers et les trembles, parfois sous les chênes et les bouleaux, en bord de chemin et de lisière humide.",
+    lookalikes: "Pas de sosie mortel. Bolet de Satan (toxique) : pores ROUGES et pied ventru rose. Le bolet orangé a des pores blanc-gris et un pied couvert de petites écailles brunes à noires. Toujours BIEN CUIT : cru ou peu cuit, il rend malade."
+  },
+  {
     id: "cesar",
     name: "Amanite des Césars",
     latin: "Amanita caesarea",
@@ -226,7 +238,7 @@ const ZONES = [
     habitats: ["feuillus", "chenes", "boismort", "lisiere"],
     note: "Coteaux boisés et vallée humide." },
   { id: "yon", dept: "85", name: "Vallée de l'Yon (La Roche-sur-Yon)", lat: 46.700, lon: -1.400, radius: 2000,
-    habitats: ["feuillus", "boismort", "prairies", "haies"],
+    habitats: ["feuillus", "boismort", "prairies", "haies", "peupliers"],
     note: "Bois et prairies humides de bord de rivière." },
   { id: "lay", dept: "85", name: "Bocage de Mareuil / vallée du Lay", lat: 46.535, lon: -1.235, radius: 3000,
     habitats: ["prairies", "haies", "lisiere", "boismort"],
@@ -238,10 +250,10 @@ const ZONES = [
     habitats: ["prairies", "haies", "lisiere"],
     note: "Bocage du nord Vendée." },
   { id: "fontenay", dept: "85", name: "Prairies de la vallée de la Vendée (Fontenay)", lat: 46.470, lon: -0.810, radius: 2500,
-    habitats: ["prairies", "haies", "boismort"],
+    habitats: ["prairies", "haies", "boismort", "peupliers"],
     note: "Prairies et peupleraies." },
   { id: "marais-poitevin", dept: "85", name: "Prairies du Marais poitevin (Luçon)", lat: 46.400, lon: -1.050, radius: 5000,
-    habitats: ["prairies", "haies"],
+    habitats: ["prairies", "haies", "peupliers"],
     note: "Grandes prairies pâturées." },
   { id: "marais-breton", dept: "85", name: "Prairies du Marais breton (Challans)", lat: 46.880, lon: -1.920, radius: 4000,
     habitats: ["prairies"],
@@ -278,10 +290,10 @@ const ZONES = [
     habitats: ["feuillus", "chenes", "chataigniers", "haies", "lisiere"],
     note: "Bois et bocage autour de Jonzac." },
   { id: "charente", dept: "17", name: "Vallée de la Charente (Saintes)", lat: 45.765, lon: -0.660, radius: 3000,
-    habitats: ["prairies", "haies", "boismort", "feuillus"],
+    habitats: ["prairies", "haies", "boismort", "feuillus", "peupliers"],
     note: "Prairies inondables, frênes et peupliers." },
   { id: "boutonne", dept: "17", name: "Vallée de la Boutonne (Saint-Jean-d'Angély)", lat: 45.945, lon: -0.520, radius: 2500,
-    habitats: ["prairies", "haies", "boismort"],
+    habitats: ["prairies", "haies", "boismort", "peupliers"],
     note: "Prairies et peupleraies de la vallée." },
   { id: "brouage", dept: "17", name: "Prairies du marais de Brouage", lat: 45.860, lon: -1.050, radius: 4000,
     habitats: ["prairies"],
@@ -377,6 +389,13 @@ const FICHES = {
     ident: "Charnu, blanc crème. Lames blanches très serrées. Forte odeur de farine fraîche. Pousse en ronds dans l'herbe vers le 23 avril.",
     milieu: "Prairies, bords de haies et lisières, au printemps.",
     cuisine: "Poêlé ou en omelette. Très parfumé."
+  },
+  boletorange: {
+    wiki: "Leccinum aurantiacum",
+    size: "Chapeau 6 à 20 cm",
+    ident: "Chapeau orange brique à rouge orangé, velouté, dont la marge dépasse un peu. Dessous à tubes (une éponge) blanchâtres puis gris. Pied haut et ferme, blanc, couvert de petites écailles (méchules) rousses puis noires. Chair blanche qui devient grise, violacée puis noire à la coupe : c'est normal.",
+    milieu: "Sous les peupliers et les trembles, plus rarement sous les chênes et les bouleaux, sur sol frais. En Vendée et Charente-Maritime : peupleraies des vallées (Lay, Vendée, Charente, Boutonne), lisières du Marais poitevin.",
+    cuisine: "Toujours bien cuit (au moins 15 minutes) : cru ou peu cuit, il provoque des troubles digestifs. La chair noircit à la cuisson, c'est sans danger. Bon en poêlée ou séché."
   },
   cesar: {
     wiki: "Amanita caesarea",

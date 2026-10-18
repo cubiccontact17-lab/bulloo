@@ -172,9 +172,9 @@ function habitatsFromForest(props) {
   if (/hetre/.test(txt)) { h.add("hetres"); h.add("feuillus"); }
   if (/feuillu|robinier|frene|charme|bouleau/.test(txt)) h.add("feuillus");
   if (/\bpins?\b|conifere|douglas|sapin|epicea|meleze/.test(txt)) h.add("pins");
-  // peupleraie : bois mort (pleurotes) et sol d'herbes / litière (coulemelles, pieds bleus),
-  // pas de cèpes ni de girolles
-  if (/peupl/.test(txt)) { h.delete("feuillus"); h.add("boismort"); h.add("lisiere"); }
+  // peupleraie : bois mort (pleurotes), sol d'herbes / litière (coulemelles, pieds bleus)
+  // et bolet orangé ; pas de cèpes ni de girolles
+  if (/peupl|tremble/.test(txt)) { h.delete("feuillus"); h.add("boismort"); h.add("lisiere"); h.add("peupliers"); }
   if (/lande|ouverte|sans couvert/.test(txt)) h.add("lisiere");
   if (/herbace/.test(txt)) h.add("prairies");
   return [...h];
